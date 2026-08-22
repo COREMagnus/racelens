@@ -1,0 +1,19 @@
+{
+  "name": "racelens",
+  "private": true,
+  "version": "0.1.0",
+  "description": "RaceLens — AI triathlon coaching (athlete self-coach)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @racelens/api",
+    "dev:mobile": "npm run start -w @racelens/mobile",
+    "typecheck": "npm run typecheck -w @racelens/shared && npm run typecheck -w @racelens/api && npm run typecheck -w @racelens/mobile",
+    "typecheck:api": "npm run typecheck -w @racelens/api"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
