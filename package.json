@@ -11,7 +11,8 @@
     "dev:api": "npm run dev -w @racelens/api",
     "dev:mobile": "npm run start -w @racelens/mobile",
     "typecheck": "npm run typecheck -w @racelens/shared && npm run typecheck -w @racelens/api && npm run typecheck -w @racelens/mobile",
-    "typecheck:api": "npm run typecheck -w @racelens/api"
+    "typecheck:api": "npm run typecheck -w @racelens/api",
+    "export:web": "npm run export:web -w @racelens/mobile"
   },
   "engines": {
     "node": ">=20.19.0"

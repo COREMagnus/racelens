@@ -97,3 +97,4 @@ Photo uses `expo-image-picker` + `expo-camera`. Voice uses `expo-audio` (SDK 57 
 | `npm run dev:api` | API with reload |
 | `npm run dev:mobile` | Expo dev server |
 | `npm run typecheck` | `tsc --noEmit` across shared, api, and mobile |
+| `npm run export:web` | Noninteractive Expo web export (`apps/mobile`) |
