@@ -12,13 +12,15 @@ export const colors = {
   bike: '#F0B429',
   run: '#FF6B4A',
   brick: '#B57BFF',
+  other: '#8B93A0',
 } as const;
 
-export const sportColor: Record<'swim' | 'bike' | 'run' | 'brick', string> = {
+export const sportColor: Record<'swim' | 'bike' | 'run' | 'brick' | 'other', string> = {
   swim: colors.swim,
   bike: colors.bike,
   run: colors.run,
   brick: colors.brick,
+  other: colors.other,
 };
 
 export const spacing = {

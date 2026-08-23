@@ -100,6 +100,8 @@ function sportAccent(session: PlannedSession): string {
       return colors.run;
     case 'brick':
       return colors.brick;
+    case 'other':
+      return colors.other;
   }
 }
 

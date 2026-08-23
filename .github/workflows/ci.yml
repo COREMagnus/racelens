@@ -26,6 +26,9 @@ jobs:
       - name: Typecheck workspaces
         run: npm run typecheck
 
+      - name: Unit tests (mocked OpenAI)
+        run: npm test
+
       - name: Export Expo web
         run: npm run export:web
         env:

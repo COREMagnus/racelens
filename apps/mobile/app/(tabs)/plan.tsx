@@ -31,7 +31,7 @@ export default function PlanScreen() {
   return (
     <Screen
       title="Plan"
-      subtitle={plan?.theme ?? 'Adaptive week view (sample data until the coach model ships).'}
+      subtitle={plan?.theme ?? 'Adaptive week view (sample data until plan generation ships).'}
     >
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {plan ? (

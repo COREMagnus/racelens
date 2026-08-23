@@ -13,6 +13,7 @@ import {
   prepareVoiceRecording,
   RecordingPresets,
   useAudioRecorder,
+  voicePayloadFromUri,
 } from '../../src/lib/capture';
 import { colors, radius, spacing } from '../../src/theme';
 
@@ -45,17 +46,14 @@ export default function LogScreen() {
       Alert.alert('Photo', 'Camera / library permission is required, or capture was cancelled.');
       return;
     }
-    await submit('photo', `${payload} — 50 min Z2 swim from watch screen`);
+    await submit('photo', payload);
   }
 
   async function onVoiceToggle() {
     if (recorderState.isRecording) {
       await recorder.stop();
-      const uri = recorder.uri ?? 'in-memory';
-      await submit(
-        'voice',
-        `Voice capture ${uri}. Stub transcript: 60 min tempo run, RPE 7, humid.`,
-      );
+      const payload = await voicePayloadFromUri(recorder.uri);
+      await submit('voice', payload);
       return;
     }
 

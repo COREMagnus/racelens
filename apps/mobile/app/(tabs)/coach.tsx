@@ -71,7 +71,7 @@ export default function CoachScreen() {
         <View style={styles.header}>
           <Text style={styles.kicker}>RACELENS</Text>
           <Text style={styles.title}>Coach</Text>
-          <Text style={styles.subtitle}>Personal AI triathlon coach · mock replies for now</Text>
+          <Text style={styles.subtitle}>Personal AI triathlon coach</Text>
         </View>
         <ScrollView
           ref={scrollRef}

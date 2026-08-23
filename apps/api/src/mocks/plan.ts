@@ -1,6 +1,9 @@
 import type { PlannedSession, WeekPlan, Weekday } from '@racelens/shared';
 
 /**
+ * Sample adaptive week (not an LLM call). Analyze + coach mocks were removed;
+ * those routes now require OPENAI_API_KEY.
+ *
  * TODO(ai): Generate this week from race goal, recent load, and readiness
  * instead of the static sample below.
  */
