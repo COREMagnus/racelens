@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "RaceLens",
+    "slug": "racelens",
+    "scheme": "racelens",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.racelens.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "RaceLens uses the camera to capture watch screens and workout boards.",
+        "NSMicrophoneUsageDescription": "RaceLens uses the microphone to log sessions by voice.",
+        "NSPhotoLibraryUsageDescription": "RaceLens uses photos of watch screens and whiteboards to log training."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#07090C",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "package": "org.racelens.app",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "RaceLens uses photos of watch screens and whiteboards to log training.",
+          "cameraPermission": "RaceLens uses the camera to capture watch screens and workout boards."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "RaceLens uses the camera to capture watch screens and workout boards."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "RaceLens uses the microphone to log sessions by voice."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
