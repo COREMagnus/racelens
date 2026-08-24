@@ -106,6 +106,92 @@ describe('analyzeSession', () => {
     assert.equal(session.source, 'photo');
   });
 
+  it('rejects oversized direct text before calling OpenAI', async () => {
+    let called = false;
+    const client = mockClient({
+      async parseSession() {
+        called = true;
+        throw new Error('should not run');
+      },
+    });
+    await assert.rejects(
+      () => analyzeSession({ type: 'text', payload: 'x'.repeat(20_001) }, { client }),
+      /Analyze text exceeds the 20000 character limit/,
+    );
+    assert.equal(called, false);
+  });
+
+  it('accepts analyze text at the 20_000 character limit', async () => {
+    const session = await analyzeSession(
+      { type: 'text', payload: 'x'.repeat(20_000) },
+      { client: mockClient(), id: 'ses_limit' },
+    );
+    assert.equal(session.id, 'ses_limit');
+  });
+
+  it('rejects an oversized photo hint before calling OpenAI', async () => {
+    let called = false;
+    const client = mockClient({
+      async parseSession() {
+        called = true;
+        throw new Error('should not run');
+      },
+    });
+    await assert.rejects(
+      () =>
+        analyzeSession(
+          {
+            type: 'photo',
+            payload: `https://cdn.example.com/watch.png — ${'h'.repeat(20_001)}`,
+          },
+          { client },
+        ),
+      /Analyze text exceeds the 20000 character limit/,
+    );
+    assert.equal(called, false);
+  });
+
+  it('rejects an oversized voice transcript payload before calling OpenAI', async () => {
+    let called = false;
+    const client = mockClient({
+      async transcribe() {
+        called = true;
+        return 'should not run';
+      },
+      async parseSession() {
+        called = true;
+        throw new Error('should not run');
+      },
+    });
+    await assert.rejects(
+      () =>
+        analyzeSession(
+          { type: 'voice', payload: `transcript: ${'x'.repeat(20_001)}` },
+          { client },
+        ),
+      /Analyze text exceeds the 20000 character limit/,
+    );
+    assert.equal(called, false);
+  });
+
+  it('rejects an oversized extracted voice transcript before structuring', async () => {
+    let structured = false;
+    const client = mockClient({
+      async transcribe() {
+        return 't'.repeat(20_001);
+      },
+      async parseSession() {
+        structured = true;
+        throw new Error('should not run');
+      },
+    });
+    await assert.rejects(
+      () => analyzeSession({ type: 'voice', payload: 'data:audio/m4a;base64,AAAA' }, { client }),
+      /Analyze text exceeds the 20000 character limit/,
+    );
+    assert.equal(structured, false);
+  });
+
   it('rejects a remote audio URL without calling the client', async () => {
     let called = false;
     const client = mockClient({

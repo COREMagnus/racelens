@@ -1,11 +1,11 @@
 import type { CoachChatRequest, CoachMessage, Session, WeekPlan } from '@racelens/shared';
 
+import { resolveLimits } from '../lib/env';
 import { createId } from '../lib/id';
 import { createOpenAiClient, type AiClient, type ChatMessage } from './client';
 import { resolveModels } from './models';
 import { buildCoachSystemPrompt, toOpenAiRole } from './prompts';
-
-const MAX_HISTORY = 20;
+import { assertCoachContext } from './request-schema';
 
 export async function coachReply(
   request: CoachChatRequest,
@@ -19,9 +19,11 @@ export async function coachReply(
   } = {},
 ): Promise<CoachMessage> {
   const env = options.env ?? process.env;
+  const limits = resolveLimits(env);
+  assertCoachContext(request, limits);
   const client = options.client ?? createOpenAiClient({ env });
   const models = resolveModels(env);
-  const history = request.messages.filter(hasContent).slice(-MAX_HISTORY);
+  const history = request.messages.filter(hasContent);
 
   const recentSessions = providedSessions(options.recentSessions ?? request.recentSessions);
   const weekPlan = options.weekPlan ?? request.weekPlan;

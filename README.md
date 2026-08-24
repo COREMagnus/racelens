@@ -1,8 +1,8 @@
-# Trisight (package paths still `racelens`)
+# RaceLens
 
-Trisight is a PlateLens-style mobile app for triathlon coaching. Athletes capture training from a watch photo, whiteboard, voice note, or text. OpenAI turns that capture into a structured session (sport, duration, intensity, load, RPE). An adaptive weekly plan and an in-app coach sit on top.
+RaceLens is a PlateLens-style mobile app for triathlon coaching. Athletes capture training from a watch photo, whiteboard, voice note, or text. OpenAI turns that capture into a structured session (sport, duration, intensity, load, RPE). An adaptive weekly plan and an in-app coach sit on top.
 
-v1 is **athlete self-coach only** — there is no coach dashboard yet. Package names remain `@racelens/*` until a dedicated rename PR.
+v1 is **athlete self-coach only** — there is no coach dashboard yet.
 
 ## Monorepo
 
@@ -47,8 +47,15 @@ cp apps/api/.env.example apps/api/.env
 | `AI_RATE_LIMIT_WINDOW_MS` | `apps/api` | Per-IP window for AI routes. Default `60000`. |
 | `AI_RATE_LIMIT_MAX` | `apps/api` | Max AI requests per window. Default `30`. `0` disables (tests). |
 | `AI_JSON_BODY_LIMIT` | `apps/api` | Express JSON body limit. Default `8mb`. |
-| `AI_MAX_PAYLOAD_CHARS` | `apps/api` | Max analyze payload characters before OpenAI. Default `6000000`. |
+| `AI_MAX_PAYLOAD_CHARS` | `apps/api` | Max **encoded** analyze payload (data URIs). Default `6000000`. Not the text limit. |
 | `AI_MAX_MEDIA_BYTES` | `apps/api` | Max decoded audio/image bytes before OpenAI. Default `4194304`. |
+| `AI_MAX_ANALYZE_TEXT_CHARS` | `apps/api` | Max analyze text / transcript / photo hint. Default `20000`. |
+| `AI_MAX_COACH_MESSAGES` | `apps/api` | Max coach messages. Default `30`. |
+| `AI_MAX_COACH_MESSAGE_CHARS` | `apps/api` | Max characters per coach message. Default `8000`. |
+| `AI_MAX_COACH_CONTEXT_CHARS` | `apps/api` | Max total coach textual context. Default `100000`. |
+| `AI_MAX_RECENT_SESSIONS` | `apps/api` | Max recent sessions on a coach request. Default `50`. |
+| `AI_MAX_WEEK_PLAN_SESSIONS` | `apps/api` | Max planned sessions in a week plan. Default `21`. |
+| `AI_MAX_SESSION_NOTES_CHARS` | `apps/api` | Max session notes characters. Default `4000`. |
 | `TRUST_PROXY` | `apps/api` | Set `true` only behind a trusted reverse proxy. |
 | `EXPO_PUBLIC_API_URL` | `apps/mobile` | Base URL for the API. Defaults to `http://localhost:3001`. |
 

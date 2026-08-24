@@ -77,6 +77,27 @@ describe('coachReply', () => {
     assert.match(prompt, /Not provided \(treat as unknown/);
   });
 
+  it('rejects oversized coach context before calling OpenAI', async () => {
+    let called = false;
+    const client = captureClient().client;
+    const guarded: typeof client = {
+      ...client,
+      async completeCoach(args) {
+        called = true;
+        return client.completeCoach(args);
+      },
+    };
+    await assert.rejects(
+      () =>
+        coachReply(mobileStyleRequest, {
+          client: guarded,
+          env: { AI_MAX_COACH_CONTEXT_CHARS: '40' },
+        }),
+      /Coach textual context exceeds the 40 character limit/,
+    );
+    assert.equal(called, false);
+  });
+
   it('passes through real readiness, sessions, and week plan when provided', async () => {
     const { client, system } = captureClient();
     await coachReply(

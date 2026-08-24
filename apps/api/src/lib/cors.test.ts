@@ -11,8 +11,8 @@ describe('CORS allowlist', () => {
 
   it('allows listed browser origins', () => {
     assert.equal(
-      isAllowedOrigin('https://app.trisight.example', {
-        CORS_ORIGINS: 'https://app.trisight.example,http://localhost:8081',
+      isAllowedOrigin('https://app.racelens.example', {
+        CORS_ORIGINS: 'https://app.racelens.example,http://localhost:8081',
         NODE_ENV: 'production',
       }),
       true,
@@ -27,7 +27,7 @@ describe('CORS allowlist', () => {
     assert.equal(
       isAllowedOrigin('https://evil.example', {
         NODE_ENV: 'production',
-        CORS_ORIGINS: 'https://app.trisight.example',
+        CORS_ORIGINS: 'https://app.racelens.example',
       }),
       false,
     );

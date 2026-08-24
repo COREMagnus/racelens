@@ -11,18 +11,23 @@ import { ZodError } from 'zod';
 
 import { coachReply, httpStatusForAiError } from '../ai';
 import {
-  coachChatRequestSchema,
+  assertCoachContext,
+  createCoachChatRequestSchema,
   formatZodError,
   type ParsedCoachChatRequest,
 } from '../ai/request-schema';
+import { resolveLimits } from '../lib/env';
 import type { AppDeps } from '../types';
 
 export function createCoachRouter(deps: AppDeps): Router {
   const router = Router();
+  const limits = resolveLimits(deps.env);
+  const schema = createCoachChatRequestSchema(limits);
 
   router.post('/chat', async (req, res) => {
     try {
-      const parsed = coachChatRequestSchema.parse(req.body);
+      const parsed = schema.parse(req.body);
+      assertCoachContext(parsed, limits);
       const request = toCoachRequest(parsed);
       const reply = await coachReply(request, {
         env: deps.env,

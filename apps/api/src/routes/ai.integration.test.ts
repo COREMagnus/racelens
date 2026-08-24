@@ -320,9 +320,177 @@ describe('AI HTTP routes', () => {
     assert.doesNotMatch(JSON.stringify(res.body), /sk-local-only/);
   });
 
+  it('rejects oversized analyze text with 400 and does not call OpenAI', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/sessions/analyze')
+      .send({ type: 'text', payload: 'x'.repeat(20_001) });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /Analyze text exceeds/);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('rejects too many coach messages with 400 and does not call OpenAI', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/coach/chat')
+      .send({
+        messages: Array.from({ length: 31 }, (_, index) => ({
+          id: `m${index}`,
+          role: index % 2 === 0 ? 'athlete' : 'coach',
+          content: 'ok',
+          createdAt: '2026-08-23T12:00:00.000Z',
+        })),
+        athlete,
+      });
+    assert.equal(res.status, 400);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('rejects too many recent sessions with 400 and does not call OpenAI', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/coach/chat')
+      .send({
+        messages: [athleteMessage],
+        athlete,
+        recentSessions: Array.from({ length: 51 }, (_, index) => ({
+          id: `ses_${index}`,
+          sport: 'run',
+          startedAt: '2026-08-21T10:00:00.000Z',
+          durationMin: 40,
+          intensity: 'easy',
+          load: 24,
+          rpe: 3,
+          notes: 'ok',
+          source: 'text',
+        })),
+      });
+    assert.equal(res.status, 400);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('rejects too many planned sessions with 400 and does not call OpenAI', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const res = await request(app)
+      .post('/coach/chat')
+      .send({
+        messages: [athleteMessage],
+        athlete,
+        weekPlan: {
+          weekStart: '2026-08-17',
+          theme: 'Build week',
+          readinessScore: 70,
+          readinessNote: 'Fine',
+          sessions: Array.from({ length: 22 }, (_, index) => ({
+            id: `plan_${index}`,
+            weekday: weekdays[index % 7],
+            date: '2026-08-17',
+            sport: 'run',
+            title: 'Easy',
+            durationMin: 30,
+            intensity: 'easy',
+            focus: 'aerobic',
+          })),
+        },
+      });
+    assert.equal(res.status, 400);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('rejects oversized coach aggregate context with 400 and does not call OpenAI', async () => {
+    const client = mockClient();
+    const app = createApp({
+      env: { ...testEnv, AI_MAX_COACH_CONTEXT_CHARS: '40' },
+      aiClient: client,
+    });
+    const res = await request(app)
+      .post('/coach/chat')
+      .send({
+        messages: [athleteMessage],
+        athlete,
+      });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /Coach textual context exceeds/);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('rejects an oversized photo hint with 400 and does not call OpenAI', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/sessions/analyze')
+      .send({
+        type: 'photo',
+        payload: `https://cdn.example.com/watch.png — ${'h'.repeat(20_001)}`,
+      });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /Analyze text exceeds/);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('still analyzes a valid photo data URI under the media limits', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/sessions/analyze')
+      .send({ type: 'photo', payload: 'data:image/jpeg;base64,/9j/4AAQ' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.source, 'photo');
+    assert.deepEqual(client.calls, ['parseSession']);
+  });
+
+  it('rejects an oversized extracted voice transcript after Whisper and does not structure', async () => {
+    let transcribed = false;
+    const client = mockClient({
+      async transcribe() {
+        transcribed = true;
+        return 't'.repeat(20_001);
+      },
+    });
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/sessions/analyze')
+      .send({ type: 'voice', payload: 'data:audio/m4a;base64,AAAA' });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /Analyze text exceeds/);
+    assert.equal(transcribed, true);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('rejects an oversized coach message with 400 and does not call OpenAI', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/coach/chat')
+      .send({
+        messages: [{ ...athleteMessage, content: 'c'.repeat(8_001) }],
+        athlete,
+      });
+    assert.equal(res.status, 400);
+    assert.deepEqual(client.calls, []);
+  });
+
+  it('still analyzes a valid audio data URI under the media limits', async () => {
+    const client = mockClient();
+    const app = createApp({ env: testEnv, aiClient: client });
+    const res = await request(app)
+      .post('/sessions/analyze')
+      .send({ type: 'voice', payload: 'data:audio/m4a;base64,AAAA' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.source, 'voice');
+    assert.ok(client.calls.includes('transcribe'));
+    assert.ok(client.calls.includes('parseSession'));
+  });
+
   it('rejects disallowed browser origins', async () => {
     const app = createApp({
-      env: { ...testEnv, NODE_ENV: 'production', CORS_ORIGINS: 'https://app.trisight.example' },
+      env: { ...testEnv, NODE_ENV: 'production', CORS_ORIGINS: 'https://app.racelens.example' },
       aiClient: mockClient(),
     });
     const res = await request(app)

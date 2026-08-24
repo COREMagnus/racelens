@@ -18,7 +18,7 @@ import {
 export { VoiceCaptureError } from './voice-payload';
 
 /**
- * Photo + voice capture for Trisight.
+ * Photo + voice capture for RaceLens.
  *
  * Analyze receives a string payload:
  * - photo: data URI (preferred) or a local fallback URI
