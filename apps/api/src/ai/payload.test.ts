@@ -5,8 +5,10 @@ import { AiRequestError } from './errors';
 import {
   classifyAnalyzePayload,
   decodeDataUri,
+  estimatedDecodedBytes,
   extractTranscript,
   filenameForAudioMime,
+  isValidBase64,
   splitUriAndHint,
 } from './payload';
 
@@ -17,12 +19,11 @@ describe('classifyAnalyzePayload', () => {
   });
 
   it('sends data-URI photos to vision', () => {
-    const payload = 'data:image/jpeg;base64,/9j/4AAQ';
+    const payload = `data:image/jpeg;base64,${Buffer.from('tiny-image').toString('base64')}`;
     const classified = classifyAnalyzePayload('photo', payload);
     assert.equal(classified.kind, 'image');
     if (classified.kind === 'image') {
       assert.equal(classified.imageUrl, payload);
-      assert.equal(classified.hint, '');
     }
   });
 
@@ -49,7 +50,7 @@ describe('classifyAnalyzePayload', () => {
     }
   });
 
-  it('treats labeled voice transcripts as text (current mobile Log fallback)', () => {
+  it('treats labeled voice transcripts as text', () => {
     const classified = classifyAnalyzePayload(
       'voice',
       'Voice capture file:///tmp/note.m4a. Stub transcript: 60 min tempo run, RPE 7, humid.',
@@ -68,6 +69,39 @@ describe('classifyAnalyzePayload', () => {
       assert.equal(classified.source, 'data-uri');
       assert.equal(classified.mime, 'audio/m4a');
     }
+  });
+
+  it('rejects remote audio URLs with 400-style AiRequestError', () => {
+    assert.throws(
+      () => classifyAnalyzePayload('voice', 'https://evil.example/session.mp3'),
+      (error: unknown) =>
+        error instanceof AiRequestError && /Remote audio URLs are not allowed/.test(error.message),
+    );
+  });
+
+  it('rejects unsupported audio MIME types before OpenAI', () => {
+    assert.throws(
+      () => classifyAnalyzePayload('voice', 'data:audio/exe;base64,AAAA'),
+      /Unsupported audio type/,
+    );
+  });
+
+  it('rejects invalid audio base64 before OpenAI', () => {
+    assert.throws(
+      () => classifyAnalyzePayload('voice', 'data:audio/m4a;base64,!!!!'),
+      /Invalid base64/,
+    );
+  });
+
+  it('rejects oversized audio without decoding the full payload', () => {
+    const huge = 'A'.repeat(100);
+    assert.throws(
+      () =>
+        classifyAnalyzePayload('voice', `data:audio/m4a;base64,${huge}`, {
+          maxMediaBytes: 16,
+        }),
+      /exceeds the 16 byte limit/,
+    );
   });
 
   it('rejects an empty payload', () => {
@@ -107,5 +141,11 @@ describe('payload helpers', () => {
     assert.equal(filenameForAudioMime('audio/mpeg'), 'audio.mp3');
     assert.equal(filenameForAudioMime('audio/webm'), 'audio.webm');
     assert.equal(filenameForAudioMime('audio/mp4'), 'audio.m4a');
+  });
+
+  it('validates base64 and estimates decoded size', () => {
+    assert.equal(isValidBase64('AAAA'), true);
+    assert.equal(isValidBase64('!!!'), false);
+    assert.equal(estimatedDecodedBytes('AAAA'), 3);
   });
 });

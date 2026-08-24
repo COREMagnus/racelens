@@ -5,14 +5,24 @@ import {
   useAudioRecorder,
 } from 'expo-audio';
 import { Camera } from 'expo-camera';
+import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
+
+import {
+  voicePayloadFromUri as encodeVoicePayload,
+  type VoiceFileSystem,
+  type VoicePayloadOptions,
+} from './voice-payload';
+
+export { VoiceCaptureError } from './voice-payload';
 
 /**
- * Photo + voice capture.
+ * Photo + voice capture for Trisight.
  *
- * Analyze still receives a string payload:
- * - photo: data URI (preferred), http(s) URL, or `photo:<uri> — description`
- * - voice: audio data URI when the recording can be read; otherwise transcript text
+ * Analyze receives a string payload:
+ * - photo: data URI (preferred) or a local fallback URI
+ * - voice: audio data URI read through Expo FileSystem (native) or a blob reader (web)
  * - text: natural language
  */
 
@@ -67,29 +77,48 @@ export async function prepareVoiceRecording(): Promise<boolean> {
   return true;
 }
 
-/** Prefer a data URI so the API can run Whisper; fall back to the raw URI. */
-export async function voicePayloadFromUri(uri: string | null): Promise<string> {
-  if (!uri) {
-    return 'Voice capture with no URI. Transcript unavailable.';
+export const expoVoiceFileSystem: VoiceFileSystem = {
+  async getInfo(uri) {
+    const file = new File(uri);
+    return {
+      exists: file.exists,
+      ...(typeof file.size === 'number' ? { size: file.size } : {}),
+    };
+  },
+  async readAsBase64(uri) {
+    const file = new File(uri);
+    return file.base64();
+  },
+};
+
+export async function readWebBlobAsBase64(
+  uri: string,
+): Promise<{ base64: string; mime: string }> {
+  const response = await fetch(uri);
+  if (!response.ok) {
+    throw new Error('Could not read the browser recording.');
   }
-  if (uri.startsWith('data:')) {
-    return uri;
-  }
-  const asData = await uriToDataUri(uri, 'audio/m4a');
-  return asData ?? `Voice capture ${uri}`;
+  const buffer = await response.arrayBuffer();
+  const mime = response.headers.get('content-type')?.split(';')[0]?.trim() || 'audio/webm';
+  return { base64: arrayBufferToBase64(buffer), mime };
 }
 
-async function uriToDataUri(uri: string, mime: string): Promise<string | null> {
-  try {
-    const response = await fetch(uri);
-    if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
-    const base64 = arrayBufferToBase64(buffer);
-    const contentType = response.headers.get('content-type')?.split(';')[0]?.trim() || mime;
-    return `data:${contentType};base64,${base64}`;
-  } catch {
-    return null;
-  }
+export async function voicePayloadFromUri(
+  uri: string | null,
+  extras: { durationMs?: number } = {},
+): Promise<string> {
+  const platform = Platform.OS === 'ios' || Platform.OS === 'android' || Platform.OS === 'web'
+    ? Platform.OS
+    : 'android';
+
+  const options: VoicePayloadOptions = {
+    platform,
+    fs: expoVoiceFileSystem,
+    ...(extras.durationMs != null ? { durationMs: extras.durationMs } : {}),
+    ...(platform === 'web' ? { readWebBlob: readWebBlobAsBase64 } : {}),
+  };
+
+  return encodeVoicePayload(uri, options);
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {

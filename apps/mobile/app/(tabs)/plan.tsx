@@ -31,12 +31,12 @@ export default function PlanScreen() {
   return (
     <Screen
       title="Plan"
-      subtitle={plan?.theme ?? 'Adaptive week view (sample data until plan generation ships).'}
+      subtitle={plan?.theme ?? 'Sample demo week (not used by Coach).'}
     >
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {plan ? (
         <Card>
-          <Text style={styles.kicker}>Week of {plan.weekStart}</Text>
+          <Text style={styles.kicker}>Sample demo · week of {plan.weekStart}</Text>
           <Text style={styles.body}>{plan.readinessNote}</Text>
         </Card>
       ) : null}

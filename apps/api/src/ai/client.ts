@@ -41,9 +41,10 @@ export function requireOpenAiKey(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 export function createOpenAiClient(
-  sdk: OpenAI = new OpenAI({ apiKey: requireOpenAiKey() }),
-  env: NodeJS.ProcessEnv = process.env,
+  options: { sdk?: OpenAI; env?: NodeJS.ProcessEnv } = {},
 ): AiClient {
+  const env = options.env ?? process.env;
+  const sdk = options.sdk ?? new OpenAI({ apiKey: requireOpenAiKey(env) });
   const models = resolveModels(env);
 
   return {

@@ -6,7 +6,7 @@ import type {
   WeekPlan,
 } from '@racelens/shared';
 
-export const ANALYZE_SYSTEM_PROMPT = `You are RaceLens session extraction. Turn an athlete's training capture into one structured triathlon session.
+export const ANALYZE_SYSTEM_PROMPT = `You are Trisight session extraction. Turn an athlete's training capture into one structured triathlon session.
 
 Rules:
 - sport must be swim, bike, run, brick, or other.
@@ -20,7 +20,7 @@ Rules:
 - If details are missing, make a conservative estimate and say so in notes. Do not invent a different sport than the capture implies.
 - Reply with the structured session only.`;
 
-export const COACH_SYSTEM_PROMPT = `You are RaceLens, a concise triathlon self-coach for age-group athletes.
+export const COACH_SYSTEM_PROMPT = `You are Trisight, a concise triathlon self-coach for age-group athletes.
 
 Style:
 - Short, specific, actionable. Typically 3–8 sentences.
@@ -29,8 +29,9 @@ Style:
 
 Coaching:
 - Respect the athlete's race goal, distance, and days until race day when present.
-- If readiness is low, or they report fatigue, soreness, or poor sleep, protect the key session and bias aerobic / recovery over intensity.
+- If a readiness score is provided and is low, or they report fatigue, soreness, or poor sleep, protect the key session and bias aerobic / recovery over intensity.
 - When a week plan or recent sessions are provided, ground advice in that data. Do not invent a conflicting plan.
+- Never invent readiness scores, HRV, sleep quality, recovery status, recent sessions, or a training plan. If those are not listed in athlete context, treat them as unknown.
 - One quality session per sport per week is enough for most age-groupers; consistency beats hero workouts.
 - Give a clear next action (what to do today or in the next session).`;
 
@@ -47,9 +48,9 @@ export function analyzeUserPrompt(type: CaptureType, text: string): string {
   return `Extract the structured session from this workout description:\n${trimmed}`;
 }
 
-export function daysUntil(isoDate: string, now = new Date()): number {
+export function daysUntil(isoDate: string, now = new Date()): number | null {
   const target = Date.parse(isoDate);
-  if (Number.isNaN(target)) return 90;
+  if (Number.isNaN(target)) return null;
   return Math.max(0, Math.ceil((target - now.getTime()) / 86_400_000));
 }
 
@@ -62,16 +63,23 @@ export function buildCoachSystemPrompt(
   } = {},
 ): string {
   const now = extras.now ?? new Date();
-  const readiness =
-    typeof athlete.readinessScore === 'number' ? String(athlete.readinessScore) : 'unknown';
+  const days = daysUntil(athlete.raceGoalDate, now);
+  const raceLine =
+    days == null
+      ? `- Race: ${athlete.raceDistance} on ${athlete.raceGoalDate}`
+      : `- Race: ${athlete.raceDistance} on ${athlete.raceGoalDate} (${days} days out)`;
+
   const lines = [
     COACH_SYSTEM_PROMPT,
     '',
     'Athlete context:',
     `- Name: ${athlete.name || 'athlete'}`,
-    `- Race: ${athlete.raceDistance} on ${athlete.raceGoalDate} (${daysUntil(athlete.raceGoalDate, now)} days out)`,
-    `- Readiness: ${readiness}`,
+    raceLine,
   ];
+
+  if (typeof athlete.readinessScore === 'number') {
+    lines.push(`- Readiness: ${athlete.readinessScore}`);
+  }
 
   if (extras.weekPlan) {
     lines.push('', `Week plan (${extras.weekPlan.weekStart}, theme: ${extras.weekPlan.theme}):`);
@@ -90,6 +98,17 @@ export function buildCoachSystemPrompt(
         `- ${session.startedAt.slice(0, 10)} ${session.sport} ${session.durationMin}min ${session.intensity} RPE ${session.rpe} load ${session.load}${session.notes ? ` — ${session.notes}` : ''}`,
       );
     }
+  }
+
+  const missing: string[] = [];
+  if (typeof athlete.readinessScore !== 'number') missing.push('readiness');
+  if (!extras.weekPlan) missing.push('week plan');
+  if (!extras.recentSessions || extras.recentSessions.length === 0) missing.push('recent sessions');
+  if (missing.length > 0) {
+    lines.push(
+      '',
+      `Not provided (treat as unknown — do not invent): ${missing.join(', ')}.`,
+    );
   }
 
   return lines.join('\n');

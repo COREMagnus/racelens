@@ -1,8 +1,8 @@
-# RaceLens
+# Trisight (package paths still `racelens`)
 
-RaceLens is a PlateLens-style mobile app for triathlon coaching. Athletes capture training from a watch photo, whiteboard, voice note, or text. OpenAI turns that capture into a structured session (sport, duration, intensity, load, RPE). An adaptive weekly plan and an in-app coach sit on top.
+Trisight is a PlateLens-style mobile app for triathlon coaching. Athletes capture training from a watch photo, whiteboard, voice note, or text. OpenAI turns that capture into a structured session (sport, duration, intensity, load, RPE). An adaptive weekly plan and an in-app coach sit on top.
 
-v1 is **athlete self-coach only** — there is no coach dashboard yet.
+v1 is **athlete self-coach only** — there is no coach dashboard yet. Package names remain `@racelens/*` until a dedicated rename PR.
 
 ## Monorepo
 
@@ -19,7 +19,7 @@ Workspaces use **npm**.
 - Node.js 20.19+ (Expo SDK 57 targets modern Node; 22.13+ is preferred)
 - npm 10+
 - Expo Go or a simulator/emulator for the mobile app
-- An OpenAI API key for session analyze and coach (local only; never commit it)
+- An OpenAI API key for **local** session analyze and coach (never commit it; never put it in `EXPO_PUBLIC_*`)
 
 ## Install
 
@@ -38,10 +38,18 @@ cp apps/api/.env.example apps/api/.env
 | Variable | Where | Purpose |
 | --- | --- | --- |
 | `PORT` | `apps/api` | API port. Defaults to `3001`. |
-| `OPENAI_API_KEY` | `apps/api` | Required for `POST /sessions/analyze` and `POST /coach/chat`. Missing key → **503** (no silent mock). |
+| `OPENAI_API_KEY` | `apps/api` only | Required for local `POST /sessions/analyze` and `POST /coach/chat`. Missing key → **503**. Never expose to the mobile app. |
 | `OPENAI_TEXT_MODEL` | `apps/api` | Text + coach model. Default **`gpt-4.1-mini`**. |
 | `OPENAI_VISION_MODEL` | `apps/api` | Photo / watch-screen model. Default **`gpt-4o-mini`**. |
 | `OPENAI_TRANSCRIBE_MODEL` | `apps/api` | Voice audio model. Default **`whisper-1`**. |
+| `NODE_ENV` | `apps/api` | When `production`, analyze + coach return **503** until real user-auth middleware exists. Local dev stays enabled. |
+| `CORS_ORIGINS` | `apps/api` | Comma-separated browser origins. No `Origin` header (native) is allowed. Production rejects unlisted browser origins. |
+| `AI_RATE_LIMIT_WINDOW_MS` | `apps/api` | Per-IP window for AI routes. Default `60000`. |
+| `AI_RATE_LIMIT_MAX` | `apps/api` | Max AI requests per window. Default `30`. `0` disables (tests). |
+| `AI_JSON_BODY_LIMIT` | `apps/api` | Express JSON body limit. Default `8mb`. |
+| `AI_MAX_PAYLOAD_CHARS` | `apps/api` | Max analyze payload characters before OpenAI. Default `6000000`. |
+| `AI_MAX_MEDIA_BYTES` | `apps/api` | Max decoded audio/image bytes before OpenAI. Default `4194304`. |
+| `TRUST_PROXY` | `apps/api` | Set `true` only behind a trusted reverse proxy. |
 | `EXPO_PUBLIC_API_URL` | `apps/mobile` | Base URL for the API. Defaults to `http://localhost:3001`. |
 
 On a physical device, set `EXPO_PUBLIC_API_URL` to your machine's LAN address (Android emulator: `http://10.0.2.2:3001`).
@@ -56,10 +64,10 @@ cp apps/mobile/.env.example apps/mobile/.env
 npm run dev:api
 ```
 
-- `GET /health` — liveness; `ai` is `openai` or `unconfigured`
-- `POST /sessions/analyze` — `{ type: "photo" \| "voice" \| "text", payload: string }` → `Session`
-- `POST /coach/chat` — `{ messages, athlete, recentSessions?, weekPlan? }` → `{ reply }`
-- `GET /plan/week` — sample adaptive week (not an LLM call)
+- `GET /health` — liveness; `ai` is `openai`, `unconfigured`, or `disabled-production`
+- `POST /sessions/analyze` — `{ type: "photo" \| "voice" \| "text", payload: string }` → `Session` (local/dev only)
+- `POST /coach/chat` — `{ messages, athlete, recentSessions?, weekPlan? }` → `{ reply }` (local/dev only)
+- `GET /plan/week` — **sample demo week**. Labeled as demo. Never used to ground Coach.
 
 Analyze payloads (string, same shape the mobile Log tab sends):
 
@@ -67,11 +75,11 @@ Analyze payloads (string, same shape the mobile Log tab sends):
 | --- | --- | --- |
 | `text` | Natural-language workout description | Structured into a `Session` |
 | `photo` | Image data URI, `https` URL, or raw base64 | Vision model reads watch / whiteboard / card. A local `photo:<uri> — description` fallback is treated as text. |
-| `voice` | Transcript text **or** audio data URI / audio URL | Transcript → same as text. Audio → Whisper, then structure. |
+| `voice` | Transcript text **or** audio data URI | Transcript → same as text. Audio data URI → Whisper, then structure. **Remote audio URLs are rejected (400).** |
 
-Coach uses the athlete profile (race distance, goal date, readiness), plus recent sessions and the week plan when the client sends them. If `weekPlan` is omitted, the API attaches the sample week so replies stay grounded.
+Coach uses only athlete fields, recent sessions, and week plan that the client actually sent. Missing readiness / sessions / plan are treated as unknown — the sample week is never substituted.
 
-Unusable model JSON returns **422** with a reason. Bad request bodies return **400**. OpenAI outages return **502**.
+Unusable model JSON returns **422**. Bad request bodies return **400**. OpenAI outages return **502**. Production without auth middleware returns **503**.
 
 Typecheck:
 
@@ -81,10 +89,16 @@ npx tsc --noEmit -p apps/api
 npm run typecheck:api
 ```
 
-API unit tests mock the OpenAI client (no live calls):
+Tests mock the OpenAI client (no live calls) and enforce API coverage:
 
 ```bash
 npm test
+```
+
+Optional local live smoke test (not used in CI):
+
+```bash
+npm run smoke:ai -w @racelens/api
 ```
 
 ## Run the mobile app
@@ -99,13 +113,13 @@ Then press `i` (iOS), `a` (Android), or `w` (web). Tabs:
 
 | Tab | What you get |
 | --- | --- |
-| Home | Today's planned sessions + readiness stub |
+| Home | Today's planned sessions + **demo** readiness (not sent to Coach) |
 | Log | Photo / Voice / Text capture → structured session preview → confirm |
-| Plan | Placeholder adaptive week |
-| Coach | Chat UI against `POST /coach/chat` |
+| Plan | Sample demo week (not used by Coach) |
+| Coach | Chat UI against `POST /coach/chat` (profile only; no fabricated readiness) |
 | Profile | Name, race goal date, distance (Sprint / Olympic / 70.3 / Ironman) |
 
-Photo uses `expo-image-picker` + `expo-camera` and sends a data URI when the picker provides base64. Voice uses `expo-audio` (SDK 57 successor to `expo-av`); the API transcribes audio data URIs and otherwise treats the payload as a transcript.
+Photo uses `expo-image-picker` + `expo-camera` and sends a data URI when the picker provides base64. Voice uses `expo-audio` plus **Expo FileSystem** to read the recording into a data URI (no `fetch(file://...)`). See `apps/mobile/VOICE_DEVICE_TEST.md` for the iOS/Android checklist.
 
 ## Shared types
 
@@ -119,5 +133,5 @@ Photo uses `expo-image-picker` + `expo-camera` and sends a data URI when the pic
 | `npm run dev:api` | API with reload |
 | `npm run dev:mobile` | Expo dev server |
 | `npm run typecheck` | `tsc --noEmit` across shared, api, and mobile |
-| `npm test` | API unit tests (mocked OpenAI; no network) |
+| `npm test` | API + mobile unit/integration tests (mocked OpenAI; coverage on API) |
 | `npm run export:web` | Noninteractive Expo web export (`apps/mobile`) |

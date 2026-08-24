@@ -106,6 +106,25 @@ describe('analyzeSession', () => {
     assert.equal(session.source, 'photo');
   });
 
+  it('rejects a remote audio URL without calling the client', async () => {
+    let called = false;
+    const client = mockClient({
+      async transcribe() {
+        called = true;
+        return 'should not run';
+      },
+      async parseSession() {
+        called = true;
+        throw new Error('should not run');
+      },
+    });
+    await assert.rejects(
+      () => analyzeSession({ type: 'voice', payload: 'https://evil.example/a.mp3' }, { client }),
+      /Remote audio URLs are not allowed/,
+    );
+    assert.equal(called, false);
+  });
+
   it('surfaces parse failures as AiParseError (HTTP 422)', async () => {
     const client = mockClient({
       async parseSession() {

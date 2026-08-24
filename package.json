@@ -12,7 +12,7 @@
     "dev:mobile": "npm run start -w @racelens/mobile",
     "typecheck": "npm run typecheck -w @racelens/shared && npm run typecheck -w @racelens/api && npm run typecheck -w @racelens/mobile",
     "typecheck:api": "npm run typecheck -w @racelens/api",
-    "test": "npm run test -w @racelens/api",
+    "test": "npm run test -w @racelens/api && npm run test -w @racelens/mobile",
     "export:web": "npm run export:web -w @racelens/mobile"
   },
   "engines": {

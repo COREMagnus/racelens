@@ -6,12 +6,12 @@ import type { CoachChatRequest, WeekPlan } from '@racelens/shared';
 import type { AiClient } from './client';
 import { coachReply } from './coach';
 
-const request: CoachChatRequest = {
+const mobileStyleRequest: CoachChatRequest = {
   messages: [
     {
       id: 'm1',
       role: 'athlete',
-      content: 'I am sore and slept badly. Should I still do the Saturday brick?',
+      content: 'Should I still do a brick this weekend?',
       createdAt: '2026-08-23T11:00:00.000Z',
     },
   ],
@@ -19,7 +19,6 @@ const request: CoachChatRequest = {
     name: 'Alex',
     raceGoalDate: '2026-10-04',
     raceDistance: '70.3',
-    readinessScore: 58,
   },
 };
 
@@ -42,40 +41,69 @@ const weekPlan: WeekPlan = {
   ],
 };
 
-describe('coachReply', () => {
-  it('returns a coach message from the model and grounds the system prompt', async () => {
-    let system = '';
-    let lastUser = '';
-    const client: AiClient = {
-      async parseSession() {
-        throw new Error('parseSession should not run');
-      },
-      async transcribe() {
-        throw new Error('transcribe should not run');
-      },
-      async completeCoach({ messages }) {
-        const sys = messages.find((message) => message.role === 'system');
-        system = typeof sys?.content === 'string' ? sys.content : '';
-        const user = [...messages].reverse().find((message) => message.role === 'user');
-        lastUser = typeof user?.content === 'string' ? user.content : '';
-        return 'Shorten the brick. Keep the ride Z2 and jog 10 easy off the bike.';
-      },
-    };
+function captureClient(): { client: AiClient; system: () => string } {
+  let system = '';
+  const client: AiClient = {
+    async parseSession() {
+      throw new Error('parseSession should not run');
+    },
+    async transcribe() {
+      throw new Error('transcribe should not run');
+    },
+    async completeCoach({ messages }) {
+      const sys = messages.find((message) => message.role === 'system');
+      system = typeof sys?.content === 'string' ? sys.content : '';
+      return 'Keep today aerobic and decide on the brick after you see how sleep goes.';
+    },
+  };
+  return { client, system: () => system };
+}
 
-    const reply = await coachReply(request, {
+describe('coachReply', () => {
+  it('does not inject sample-plan or fabricated readiness for an ordinary mobile request', async () => {
+    const { client, system } = captureClient();
+    await coachReply(mobileStyleRequest, {
       client,
-      weekPlan,
       id: 'msg_coach',
       now: new Date('2026-08-23T12:00:00.000Z'),
     });
+    const prompt = system();
+    assert.doesNotMatch(prompt, /readiness 74/i);
+    assert.doesNotMatch(prompt, /Readiness: 74/);
+    assert.doesNotMatch(prompt, /Sleep and HRV look stable/);
+    assert.doesNotMatch(prompt, /Saturday brick/);
+    assert.doesNotMatch(prompt, /Bike-run brick/);
+    assert.doesNotMatch(prompt, /Green light for the Saturday brick/);
+    assert.match(prompt, /Not provided \(treat as unknown/);
+  });
 
-    assert.equal(reply.id, 'msg_coach');
-    assert.equal(reply.role, 'coach');
-    assert.match(reply.content, /Shorten the brick/);
-    assert.match(system, /Alex/);
-    assert.match(system, /70\.3/);
-    assert.match(system, /58/);
-    assert.match(system, /Bike-run brick/);
-    assert.match(lastUser, /sore/);
+  it('passes through real readiness, sessions, and week plan when provided', async () => {
+    const { client, system } = captureClient();
+    await coachReply(
+      {
+        ...mobileStyleRequest,
+        athlete: { ...mobileStyleRequest.athlete, readinessScore: 58 },
+        recentSessions: [
+          {
+            id: 'ses_1',
+            sport: 'run',
+            startedAt: '2026-08-21T10:00:00.000Z',
+            durationMin: 40,
+            intensity: 'easy',
+            load: 24,
+            rpe: 3,
+            notes: 'Legs heavy',
+            source: 'text',
+          },
+        ],
+        weekPlan,
+      },
+      { client, weekPlan, now: new Date('2026-08-23T12:00:00.000Z') },
+    );
+    const prompt = system();
+    assert.match(prompt, /Readiness: 58/);
+    assert.match(prompt, /Bike-run brick/);
+    assert.match(prompt, /Legs heavy/);
+    assert.doesNotMatch(prompt, /Not provided/);
   });
 });

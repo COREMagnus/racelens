@@ -38,10 +38,10 @@ export default function HomeScreen() {
   return (
     <Screen
       title={`Hey ${profile.name}`}
-      subtitle="Today's sessions and a readiness snapshot. v1 is athlete self-coach only."
+      subtitle="Today's sessions and a demo readiness snapshot. Sample plan is not used by Coach."
     >
       <Card>
-        <Text style={styles.sectionLabel}>Readiness</Text>
+        <Text style={styles.sectionLabel}>Readiness (demo)</Text>
         <Text style={styles.readiness}>
           {plan ? `${plan.readinessScore}` : '—'}
           <Text style={styles.readinessUnit}> / 100</Text>

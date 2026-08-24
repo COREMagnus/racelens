@@ -27,7 +27,7 @@ export default function CoachScreen() {
       id: 'welcome',
       role: 'coach',
       content:
-        "I'm your RaceLens self-coach. Ask about today's session, fatigue, or how to adapt the week.",
+        "I'm your Trisight self-coach. Ask about today's session, fatigue, or how to adapt the week.",
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -49,10 +49,7 @@ export default function CoachScreen() {
     setError(null);
 
     try {
-      const { reply } = await chatWithCoach(next, {
-        ...profile,
-        readinessScore: 74,
-      });
+      const { reply } = await chatWithCoach(next, profile);
       setMessages([...next, reply]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coach is unavailable');
@@ -69,7 +66,7 @@ export default function CoachScreen() {
         keyboardVerticalOffset={8}
       >
         <View style={styles.header}>
-          <Text style={styles.kicker}>RACELENS</Text>
+          <Text style={styles.kicker}>TRISIGHT</Text>
           <Text style={styles.title}>Coach</Text>
           <Text style={styles.subtitle}>Personal AI triathlon coach</Text>
         </View>

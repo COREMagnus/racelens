@@ -7,3 +7,8 @@ export { createOpenAiClient, isOpenAiConfigured, requireOpenAiKey } from './clie
 export { coachReply } from './coach';
 export { httpStatusForAiError } from './errors';
 export { resolveModels } from './models';
+export {
+  analyzeRequestSchema,
+  coachChatRequestSchema,
+  formatZodError,
+} from './request-schema';

@@ -15,19 +15,22 @@ export async function coachReply(
     id?: string;
     recentSessions?: Session[];
     weekPlan?: WeekPlan;
+    env?: NodeJS.ProcessEnv;
   } = {},
 ): Promise<CoachMessage> {
-  const client = options.client ?? createOpenAiClient();
-  const models = resolveModels();
+  const env = options.env ?? process.env;
+  const client = options.client ?? createOpenAiClient({ env });
+  const models = resolveModels(env);
   const history = request.messages.filter(hasContent).slice(-MAX_HISTORY);
 
-  const recentSessions = options.recentSessions ?? request.recentSessions;
+  const recentSessions = providedSessions(options.recentSessions ?? request.recentSessions);
   const weekPlan = options.weekPlan ?? request.weekPlan;
+  const athlete = providedAthlete(request.athlete);
 
   const messages: ChatMessage[] = [
     {
       role: 'system',
-      content: buildCoachSystemPrompt(request.athlete, {
+      content: buildCoachSystemPrompt(athlete, {
         ...(recentSessions ? { recentSessions } : {}),
         ...(weekPlan ? { weekPlan } : {}),
         ...(options.now ? { now: options.now } : {}),
@@ -55,6 +58,23 @@ export async function coachReply(
   };
 }
 
+function providedSessions(sessions: Session[] | undefined): Session[] | undefined {
+  if (!sessions || sessions.length === 0) return undefined;
+  return sessions;
+}
+
+function providedAthlete(athlete: CoachChatRequest['athlete']): CoachChatRequest['athlete'] {
+  if (typeof athlete.readinessScore === 'number') {
+    return athlete;
+  }
+  return {
+    name: athlete.name,
+    raceGoalDate: athlete.raceGoalDate,
+    raceDistance: athlete.raceDistance,
+  };
+}
+
 function hasContent(message: CoachMessage): boolean {
   return message.content.trim().length > 0;
 }
+

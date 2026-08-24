@@ -1,5 +1,6 @@
 import type { AnalyzeSessionRequest, Session } from '@racelens/shared';
 
+import { resolveLimits } from '../lib/env';
 import { createId } from '../lib/id';
 import { createOpenAiClient, type AiClient, type ChatMessage } from './client';
 import { AiRequestError } from './errors';
@@ -18,20 +19,34 @@ export async function analyzeSession(
     client?: AiClient;
     now?: Date;
     id?: string;
-    fetchImpl?: typeof fetch;
+    env?: NodeJS.ProcessEnv;
   } = {},
 ): Promise<Session> {
-  const client = options.client ?? createOpenAiClient();
-  const models = resolveModels();
-  const classified = classifyAnalyzePayload(request.type, request.payload);
+  const env = options.env ?? process.env;
+  const limits = resolveLimits(env);
+  const client = options.client ?? createOpenAiClient({ env });
+  const models = resolveModels(env);
+  const classified = classifyAnalyzePayload(request.type, request.payload, {
+    maxPayloadChars: limits.maxPayloadChars,
+    maxMediaBytes: limits.maxMediaBytes,
+  });
 
-  let userText = '';
   const messages: ChatMessage[] = [{ role: 'system', content: ANALYZE_SYSTEM_PROMPT }];
   let model = models.text;
 
   if (classified.kind === 'audio') {
-    const audio = await loadAudio(classified, options.fetchImpl ?? fetch);
-    userText = await client.transcribe(audio);
+    const decoded = decodeDataUri(classified.dataUri);
+    if (decoded.buffer.length === 0) {
+      throw new AiRequestError('Audio data URI decoded to empty bytes.');
+    }
+    if (decoded.buffer.length > limits.maxMediaBytes) {
+      throw new AiRequestError(`Audio exceeds the ${limits.maxMediaBytes} byte limit.`);
+    }
+    const userText = await client.transcribe({
+      buffer: decoded.buffer,
+      mime: decoded.mime,
+      filename: filenameForAudioMime(decoded.mime),
+    });
     messages.push({
       role: 'user',
       content: analyzeUserPrompt('voice', userText),
@@ -46,13 +61,12 @@ export async function analyzeSession(
       ],
     });
   } else {
-    userText = classified.text;
-    if (!userText.trim()) {
+    if (!classified.text.trim()) {
       throw new AiRequestError('payload must be a non-empty string');
     }
     messages.push({
       role: 'user',
-      content: analyzeUserPrompt(request.type, userText),
+      content: analyzeUserPrompt(request.type, classified.text),
     });
   }
 
@@ -61,28 +75,4 @@ export async function analyzeSession(
     id: options.id ?? createId('ses'),
     ...(options.now ? { now: options.now } : {}),
   });
-}
-
-async function loadAudio(
-  ref: Extract<ReturnType<typeof classifyAnalyzePayload>, { kind: 'audio' }>,
-  fetchImpl: typeof fetch,
-): Promise<{ buffer: Buffer; filename: string; mime: string }> {
-  if (ref.source === 'data-uri' && ref.dataUri) {
-    const decoded = decodeDataUri(ref.dataUri);
-    return {
-      buffer: decoded.buffer,
-      mime: decoded.mime,
-      filename: filenameForAudioMime(decoded.mime),
-    };
-  }
-  if (ref.url) {
-    const response = await fetchImpl(ref.url);
-    if (!response.ok) {
-      throw new AiRequestError(`Could not download audio from URL (HTTP ${response.status}).`);
-    }
-    const mime = response.headers.get('content-type')?.split(';')[0]?.trim() || ref.mime;
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return { buffer, mime, filename: filenameForAudioMime(mime) };
-  }
-  throw new AiRequestError('Voice audio payload was missing bytes.');
 }

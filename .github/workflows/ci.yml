@@ -26,8 +26,15 @@ jobs:
       - name: Typecheck workspaces
         run: npm run typecheck
 
-      - name: Unit tests (mocked OpenAI)
+      - name: Unit tests + coverage (mocked OpenAI)
         run: npm test
+
+      - name: Upload API coverage (lcov)
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: apps/api/coverage/lcov.info
+          if-no-files-found: error
 
       - name: Export Expo web
         run: npm run export:web
