@@ -1,6 +1,8 @@
-# RaceLens
+# TriAdapt
 
-RaceLens is a PlateLens-style mobile app for triathlon coaching. Athletes capture training from a watch photo, whiteboard, voice note, or text. OpenAI turns that capture into a structured session (sport, duration, intensity, load, RPE). An adaptive weekly plan and an in-app coach sit on top.
+**Your adaptive AI triathlon coach.**
+
+TriAdapt turns workout data into structured sessions and personalized coaching that adapts to the athlete’s training, readiness, goals, and schedule. Athletes capture training from a watch photo, whiteboard, voice note, or text. OpenAI turns that capture into a structured session (sport, duration, intensity, load, RPE). An adaptive weekly plan and an in-app coach sit on top.
 
 v1 is **athlete self-coach only** — there is no coach dashboard yet.
 
@@ -127,6 +129,19 @@ Then press `i` (iOS), `a` (Android), or `w` (web). Tabs:
 | Profile | Name, race goal date, distance (Sprint / Olympic / 70.3 / Ironman) |
 
 Photo uses `expo-image-picker` + `expo-camera` and sends a data URI when the picker provides base64. Voice uses `expo-audio` plus **Expo FileSystem** to read the recording into a data URI (no `fetch(file://...)`). See `apps/mobile/VOICE_DEVICE_TEST.md` for the iOS/Android checklist.
+
+## Product identifiers
+
+User-facing name, Expo display name, slug, and URL scheme are **TriAdapt** / `triadapt`.
+
+These `racelens` technical identifiers are **intentionally retained** (compatibility exceptions). They are not user-facing product names:
+
+| Identifier | Where | Why retained |
+| --- | --- | --- |
+| GitHub repository `COREMagnus/racelens` | remote origin | Do not rename the remote repository from this PR. |
+| npm workspaces `racelens`, `@racelens/api`, `@racelens/mobile`, `@racelens/shared` | `package.json` / imports | Private unpublished workspaces already wired to the GitHub repo name. No published npm packages exist; changing scopes would churn the lockfile without a user-facing benefit while the remote repo stays `racelens`. |
+| iOS `bundleIdentifier` / Android `package` `org.racelens.app` | `apps/mobile/app.json` | No App Store Connect or Play Console access from this environment, so store/provisioning use cannot be ruled out. |
+| AsyncStorage key `racelens.athlete.v1` | `apps/mobile/src/state/profile.tsx` | Preserves any local athlete profile already saved on a device running an earlier build. |
 
 ## Shared types
 

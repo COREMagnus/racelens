@@ -13,7 +13,7 @@ export function createHealthRouter(deps: AppDeps): Router {
     const aiAllowed = isUnauthenticatedAiAllowed(deps.env);
     res.json({
       ok: true,
-      service: 'racelens-api',
+      service: 'triadapt-api',
       ai: !aiAllowed ? 'disabled-production' : configured ? 'openai' : 'unconfigured',
       models: configured && aiAllowed
         ? { text: models.text, vision: models.vision, transcribe: models.transcribe }

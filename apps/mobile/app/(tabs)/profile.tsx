@@ -19,7 +19,7 @@ export default function ProfileScreen() {
   return (
     <Screen
       title="Profile"
-      subtitle="Athlete basics used by the coach and adaptive plan. No coach dashboard in v1."
+      subtitle="Athlete basics used by TriAdapt coaching. No coach dashboard in v1."
     >
       <Card>
         <Text style={styles.label}>Name</Text>

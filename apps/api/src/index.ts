@@ -6,5 +6,5 @@ const port = Number(process.env.PORT ?? 3001);
 const app = createApp();
 
 app.listen(port, () => {
-  console.log(`RaceLens API listening on http://localhost:${port}`);
+  console.log(`TriAdapt API listening on http://localhost:${port}`);
 });

@@ -2,7 +2,7 @@
   "name": "racelens",
   "private": true,
   "version": "0.1.0",
-  "description": "RaceLens — AI triathlon coaching (athlete self-coach)",
+  "description": "TriAdapt — Your adaptive AI triathlon coach",
   "workspaces": [
     "apps/*",
     "packages/*"

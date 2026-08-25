@@ -248,6 +248,7 @@ describe('AI HTTP routes', () => {
     const health = await request(app).get('/health');
     const plan = await request(app).get('/plan/week');
     assert.equal(health.status, 200);
+    assert.equal(health.body.service, 'triadapt-api');
     assert.equal(health.body.ai, 'unconfigured');
     assert.equal(plan.status, 200);
     assert.match(plan.body.theme, /demo/i);
@@ -490,7 +491,7 @@ describe('AI HTTP routes', () => {
 
   it('rejects disallowed browser origins', async () => {
     const app = createApp({
-      env: { ...testEnv, NODE_ENV: 'production', CORS_ORIGINS: 'https://app.racelens.example' },
+      env: { ...testEnv, NODE_ENV: 'production', CORS_ORIGINS: 'https://app.triadapt.example' },
       aiClient: mockClient(),
     });
     const res = await request(app)

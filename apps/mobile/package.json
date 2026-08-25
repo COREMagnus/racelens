@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/voice-payload.test.ts"
+    "test": "tsx --test src/branding.test.ts src/lib/voice-payload.test.ts"
   },
   "dependencies": {
     "@racelens/shared": "*",

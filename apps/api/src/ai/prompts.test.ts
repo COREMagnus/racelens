@@ -45,7 +45,10 @@ describe('prompts', () => {
   });
 
   it('keeps the coach prompt concise and race-aware', () => {
-    assert.match(COACH_SYSTEM_PROMPT, /RaceLens/);
+    assert.match(ANALYZE_SYSTEM_PROMPT, /TriAdapt/);
+    assert.match(COACH_SYSTEM_PROMPT, /TriAdapt/);
+    assert.match(COACH_SYSTEM_PROMPT, /adaptive AI triathlon coach/);
+    assert.doesNotMatch(`${ANALYZE_SYSTEM_PROMPT}\n${COACH_SYSTEM_PROMPT}`, /RaceLens|Trisight|TriSight/);
     assert.match(COACH_SYSTEM_PROMPT, /triathlon/i);
     assert.match(COACH_SYSTEM_PROMPT, /Never invent readiness/);
     assert.match(COACH_SYSTEM_PROMPT, /Z1–Z5|Z1-Z5/);

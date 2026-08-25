@@ -2,6 +2,7 @@ import type { PlannedSession, WeekPlan } from '@racelens/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { PRODUCT_TAGLINE } from '../../src/branding';
 import { Card } from '../../src/components/Card';
 import { Screen } from '../../src/components/Screen';
 import { SportBadge } from '../../src/components/SportBadge';
@@ -38,7 +39,7 @@ export default function HomeScreen() {
   return (
     <Screen
       title={`Hey ${profile.name}`}
-      subtitle="Today's sessions and a demo readiness snapshot. Sample plan is not used by Coach."
+      subtitle={`${PRODUCT_TAGLINE}. Today's sessions and a demo readiness snapshot. Sample plan is not used by Coach.`}
     >
       <Card>
         <Text style={styles.sectionLabel}>Readiness (demo)</Text>
