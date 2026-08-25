@@ -1,11 +1,25 @@
 import { Router } from 'express';
 
-export const healthRouter = Router();
+import { isOpenAiConfigured, resolveModels } from '../ai';
+import { isUnauthenticatedAiAllowed } from '../lib/access';
+import type { AppDeps } from '../types';
 
-healthRouter.get('/', (_req, res) => {
-  res.json({
-    ok: true,
-    service: 'racelens-api',
-    ai: 'mock',
+export function createHealthRouter(deps: AppDeps): Router {
+  const router = Router();
+
+  router.get('/', (_req, res) => {
+    const configured = isOpenAiConfigured(deps.env);
+    const models = resolveModels(deps.env);
+    const aiAllowed = isUnauthenticatedAiAllowed(deps.env);
+    res.json({
+      ok: true,
+      service: 'triadapt-api',
+      ai: !aiAllowed ? 'disabled-production' : configured ? 'openai' : 'unconfigured',
+      models: configured && aiAllowed
+        ? { text: models.text, vision: models.vision, transcribe: models.transcribe }
+        : null,
+    });
   });
-});
+
+  return router;
+}

@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "RaceLens",
-    "slug": "racelens",
-    "scheme": "racelens",
+    "name": "TriAdapt",
+    "slug": "triadapt",
+    "scheme": "triadapt",
+    "description": "Your adaptive AI triathlon coach. TriAdapt turns workout data into structured sessions and personalized coaching that adapts to the athlete's training, readiness, goals, and schedule.",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,9 +13,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "org.racelens.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "RaceLens uses the camera to capture watch screens and workout boards.",
-        "NSMicrophoneUsageDescription": "RaceLens uses the microphone to log sessions by voice.",
-        "NSPhotoLibraryUsageDescription": "RaceLens uses photos of watch screens and whiteboards to log training."
+        "NSCameraUsageDescription": "TriAdapt uses the camera to capture watch screens and workout boards.",
+        "NSMicrophoneUsageDescription": "TriAdapt uses the microphone to log sessions by voice.",
+        "NSPhotoLibraryUsageDescription": "TriAdapt uses photos of watch screens and whiteboards to log training."
       }
     },
     "android": {
@@ -37,20 +38,20 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "RaceLens uses photos of watch screens and whiteboards to log training.",
-          "cameraPermission": "RaceLens uses the camera to capture watch screens and workout boards."
+          "photosPermission": "TriAdapt uses photos of watch screens and whiteboards to log training.",
+          "cameraPermission": "TriAdapt uses the camera to capture watch screens and workout boards."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "RaceLens uses the camera to capture watch screens and workout boards."
+          "cameraPermission": "TriAdapt uses the camera to capture watch screens and workout boards."
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "RaceLens uses the microphone to log sessions by voice."
+          "microphonePermission": "TriAdapt uses the microphone to log sessions by voice."
         }
       ]
     ],

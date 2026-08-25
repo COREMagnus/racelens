@@ -1,4 +1,4 @@
-export const SPORTS = ['swim', 'bike', 'run', 'brick'] as const;
+export const SPORTS = ['swim', 'bike', 'run', 'brick', 'other'] as const;
 export type Sport = (typeof SPORTS)[number];
 
 export const INTENSITY_ZONES = ['z1', 'z2', 'z3', 'z4', 'z5'] as const;

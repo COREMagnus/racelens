@@ -1,6 +1,10 @@
 import type { PlannedSession, WeekPlan, Weekday } from '@racelens/shared';
 
 /**
+ * Demo-only sample week for the Plan / Home screens.
+ * Never pass this into /coach/chat. Coach must only see a week plan the
+ * client actually provided.
+ *
  * TODO(ai): Generate this week from race goal, recent load, and readiness
  * instead of the static sample below.
  */
@@ -18,9 +22,9 @@ export function sampleWeekPlan(now = new Date()): WeekPlan {
 
   return {
     weekStart: toDateString(weekStart),
-    theme: 'Build week — aerobic base with one quality session per sport',
+    theme: 'Sample demo week — aerobic base with one quality session per sport (not used by Coach)',
     readinessScore: 74,
-    readinessNote: 'Sleep and HRV look stable. Green light for the Saturday brick.',
+    readinessNote: 'Demo data only — not real sleep, HRV, or readiness. Coach never sees this sample week.',
     sessions,
   };
 }

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PRODUCT_KICKER, PRODUCT_NAME, PRODUCT_TAGLINE } from '../../src/branding';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { chatWithCoach } from '../../src/lib/api';
 import { useProfile } from '../../src/state/profile';
@@ -27,7 +28,7 @@ export default function CoachScreen() {
       id: 'welcome',
       role: 'coach',
       content:
-        "I'm your RaceLens self-coach. Ask about today's session, fatigue, or how to adapt the week.",
+        `I'm your ${PRODUCT_NAME} coach. I turn training into structured sessions and coaching that adapts to your readiness, goals, and schedule. Ask about today's session, fatigue, or how to adapt the week.`,
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -49,10 +50,7 @@ export default function CoachScreen() {
     setError(null);
 
     try {
-      const { reply } = await chatWithCoach(next, {
-        ...profile,
-        readinessScore: 74,
-      });
+      const { reply } = await chatWithCoach(next, profile);
       setMessages([...next, reply]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coach is unavailable');
@@ -69,9 +67,9 @@ export default function CoachScreen() {
         keyboardVerticalOffset={8}
       >
         <View style={styles.header}>
-          <Text style={styles.kicker}>RACELENS</Text>
+          <Text style={styles.kicker}>{PRODUCT_KICKER}</Text>
           <Text style={styles.title}>Coach</Text>
-          <Text style={styles.subtitle}>Personal AI triathlon coach · mock replies for now</Text>
+          <Text style={styles.subtitle}>{PRODUCT_TAGLINE}</Text>
         </View>
         <ScrollView
           ref={scrollRef}

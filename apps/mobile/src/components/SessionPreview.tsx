@@ -22,7 +22,7 @@ export function SessionPreview({
   return (
     <Card>
       <Text style={styles.heading}>Structured session</Text>
-      <Text style={styles.hint}>Mock AI draft — edit anything, then confirm.</Text>
+      <Text style={styles.hint}>AI draft — edit anything, then confirm.</Text>
 
       <View style={styles.row}>
         {SPORTS.map((sport) => (

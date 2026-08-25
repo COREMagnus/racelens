@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 
+/** Compatibility: keep the existing local profile key so earlier builds are not wiped. */
 const STORAGE_KEY = 'racelens.athlete.v1';
 
 const DEFAULT_PROFILE: AthleteProfile = {

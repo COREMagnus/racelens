@@ -9,10 +9,12 @@ import { Screen } from '../../src/components/Screen';
 import { SessionPreview } from '../../src/components/SessionPreview';
 import { analyzeSession } from '../../src/lib/api';
 import {
+  VoiceCaptureError,
   captureWatchOrBoardPhoto,
   prepareVoiceRecording,
   RecordingPresets,
   useAudioRecorder,
+  voicePayloadFromUri,
 } from '../../src/lib/capture';
 import { colors, radius, spacing } from '../../src/theme';
 
@@ -24,6 +26,7 @@ export default function LogScreen() {
   const [confirmed, setConfirmed] = useState<Session | null>(null);
   const [busy, setBusy] = useState<CaptureType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [voiceStartedAt, setVoiceStartedAt] = useState<number | null>(null);
 
   async function submit(type: CaptureType, payload: string) {
     setBusy(type);
@@ -45,17 +48,29 @@ export default function LogScreen() {
       Alert.alert('Photo', 'Camera / library permission is required, or capture was cancelled.');
       return;
     }
-    await submit('photo', `${payload} — 50 min Z2 swim from watch screen`);
+    await submit('photo', payload);
   }
 
   async function onVoiceToggle() {
     if (recorderState.isRecording) {
       await recorder.stop();
-      const uri = recorder.uri ?? 'in-memory';
-      await submit(
-        'voice',
-        `Voice capture ${uri}. Stub transcript: 60 min tempo run, RPE 7, humid.`,
-      );
+      const durationMs = voiceStartedAt != null ? Date.now() - voiceStartedAt : undefined;
+      setVoiceStartedAt(null);
+      try {
+        const payload = await voicePayloadFromUri(recorder.uri, {
+          ...(durationMs != null ? { durationMs } : {}),
+        });
+        await submit('voice', payload);
+      } catch (err) {
+        const message =
+          err instanceof VoiceCaptureError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : 'Could not read the recording. Try again or log as text.';
+        setError(message);
+        Alert.alert('Voice', message);
+      }
       return;
     }
 
@@ -65,6 +80,7 @@ export default function LogScreen() {
       return;
     }
     await recorder.prepareToRecordAsync();
+    setVoiceStartedAt(Date.now());
     recorder.record();
   }
 

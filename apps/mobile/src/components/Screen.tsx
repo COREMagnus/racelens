@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PRODUCT_KICKER } from '../branding';
 import { colors, spacing } from '../theme';
 
 interface ScreenProps {
@@ -14,7 +15,7 @@ interface ScreenProps {
 export function Screen({ title, subtitle, children, scroll = true }: ScreenProps) {
   const body = (
     <View style={styles.inner}>
-      <Text style={styles.kicker}>RACELENS</Text>
+      <Text style={styles.kicker}>{PRODUCT_KICKER}</Text>
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       {children}
