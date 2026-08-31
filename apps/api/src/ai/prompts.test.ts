@@ -85,7 +85,7 @@ describe('prompts', () => {
     assert.match(prompt, /Readiness: 61/);
     assert.match(prompt, /Bike-run brick/);
     assert.match(prompt, /Legs heavy/);
-    assert.equal(daysUntil(athlete.raceGoalDate, now), 42);
+    assert.equal(daysUntil(athlete.raceGoalDate ?? '', now), 42);
     assert.match(prompt, /42 days out/);
     assert.doesNotMatch(prompt, /Not provided/);
   });
@@ -101,6 +101,44 @@ describe('prompts', () => {
     assert.doesNotMatch(prompt, /Bike-run brick/);
     assert.doesNotMatch(prompt, /Green light/);
     assert.match(prompt, /Not provided \(treat as unknown — do not invent\): readiness, week plan, recent sessions/);
+  });
+
+  it('includes volume, experience, and constraints only when provided', () => {
+    const prompt = buildCoachSystemPrompt(
+      {
+        name: 'Sam',
+        raceDistance: 'Olympic',
+        raceGoalDate: '2026-11-08',
+        weeklyVolumeHours: 8,
+        experienceLevel: 'beginner',
+        constraints: 'Limited pool access',
+      },
+      { now: new Date('2026-08-23T00:00:00.000Z') },
+    );
+    assert.match(prompt, /Typical weekly volume: 8 hours/);
+    assert.match(prompt, /Experience: beginner/);
+    assert.match(prompt, /Constraints: Limited pool access/);
+    assert.match(prompt, /Olympic on 2026-11-08/);
+    assert.doesNotMatch(prompt, /readiness 74/i);
+  });
+
+  it('labels a race distance without a date instead of inventing one', () => {
+    const prompt = buildCoachSystemPrompt(
+      { name: 'Sam', raceDistance: 'Sprint' },
+      { now: new Date('2026-08-23T00:00:00.000Z') },
+    );
+    assert.match(prompt, /Race: Sprint \(no race date\)/);
+    assert.doesNotMatch(prompt, /days out/);
+  });
+
+  it('treats a missing race goal as unknown', () => {
+    const prompt = buildCoachSystemPrompt(
+      { name: 'Sam' },
+      { now: new Date('2026-08-23T00:00:00.000Z') },
+    );
+    assert.match(prompt, /Not provided \(treat as unknown — do not invent\): race goal, readiness, week plan, recent sessions/);
+    assert.doesNotMatch(prompt, /Race: /);
+    assert.doesNotMatch(prompt, /readiness 74/i);
   });
 
   it('does not invent days-until when the race date is invalid', () => {

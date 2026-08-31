@@ -1,70 +1,64 @@
-import type { PlannedSession, WeekPlan } from '@racelens/shared';
-import { useEffect, useMemo, useState } from 'react';
+import type { PlannedSession } from '@racelens/shared';
+import {
+  isDemoWeekPlan,
+  planBanner,
+  raceGoalLabel,
+  resolveWeekPlan,
+  weeklyVolumeHours,
+} from '@racelens/shared';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PRODUCT_TAGLINE } from '../../src/branding';
 import { Card } from '../../src/components/Card';
 import { Screen } from '../../src/components/Screen';
 import { SportBadge } from '../../src/components/SportBadge';
-import { API_URL, getWeekPlan } from '../../src/lib/api';
 import { useProfile } from '../../src/state/profile';
 import { colors, spacing } from '../../src/theme';
 
 export default function HomeScreen() {
   const { profile } = useProfile();
-  const [plan, setPlan] = useState<WeekPlan | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void getWeekPlan()
-      .then((week) => {
-        if (!cancelled) {
-          setPlan(week);
-          setError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Could not load plan');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const today = useMemo(() => todaySessions(plan), [plan]);
+  const plan = useMemo(() => resolveWeekPlan(profile), [profile]);
+  const today = useMemo(() => todaySessions(plan.sessions), [plan]);
+  const demo = isDemoWeekPlan(plan);
+  const volume = weeklyVolumeHours(profile.weeklyVolume);
+  const greeting = profile.name.trim() ? `Hey ${profile.name.trim()}` : 'Hey there';
 
   return (
     <Screen
-      title={`Hey ${profile.name}`}
-      subtitle={`${PRODUCT_TAGLINE}. Today's sessions and a demo readiness snapshot. Sample plan is not used by Coach.`}
+      title={greeting}
+      subtitle={`${PRODUCT_TAGLINE}. Today's sessions come from your race goal when you have one.`}
     >
       <Card>
-        <Text style={styles.sectionLabel}>Readiness (demo)</Text>
-        <Text style={styles.readiness}>
-          {plan ? `${plan.readinessScore}` : '—'}
-          <Text style={styles.readinessUnit}> / 100</Text>
-        </Text>
+        <Text style={styles.sectionLabel}>Race goal</Text>
+        <Text style={styles.goal}>{raceGoalLabel(profile)}</Text>
         <Text style={styles.body}>
-          {plan?.readinessNote ?? 'Start the API to load the adaptive week stub.'}
+          {volume != null
+            ? `Typical week · ${volume} hours`
+            : 'Typical weekly volume unknown'}
         </Text>
-        <Text style={styles.meta}>
-          Goal · {profile.raceDistance} · {profile.raceGoalDate}
-        </Text>
+        {profile.experienceLevel ? (
+          <Text style={styles.meta}>Experience · {profile.experienceLevel}</Text>
+        ) : null}
       </Card>
 
-      <Text style={styles.listTitle}>Today</Text>
-      {error ? (
+      <Card>
+        <Text style={styles.sectionLabel}>Readiness</Text>
+        <Text style={styles.unknown}>Unknown</Text>
+        <Text style={styles.body}>
+          No sleep, HRV, or recovery score yet. TriAdapt will not invent one.
+        </Text>
+        <Text style={styles.meta}>{planBanner(plan)}</Text>
+      </Card>
+
+      <Text style={styles.listTitle}>{demo ? 'Today (demo)' : 'Today'}</Text>
+      {today.length === 0 ? (
         <Card>
-          <Text style={styles.error}>{error}</Text>
-          <Text style={styles.meta}>API {API_URL}</Text>
-        </Card>
-      ) : null}
-      {today.length === 0 && !error ? (
-        <Card>
-          <Text style={styles.body}>No planned sessions for today — recovery or catch-up day.</Text>
+          <Text style={styles.body}>
+            {demo
+              ? 'No demo sessions dated today. The sample week is not based on your goal.'
+              : 'No planned sessions for today — recovery or catch-up day.'}
+          </Text>
         </Card>
       ) : (
         today.map((session) => (
@@ -85,10 +79,9 @@ export default function HomeScreen() {
   );
 }
 
-function todaySessions(plan: WeekPlan | null): PlannedSession[] {
-  if (!plan) return [];
+function todaySessions(sessions: PlannedSession[]): PlannedSession[] {
   const today = new Date().toISOString().slice(0, 10);
-  return plan.sessions.filter((session) => session.date === today);
+  return sessions.filter((session) => session.date === today);
 }
 
 function sportAccent(session: PlannedSession): string {
@@ -114,17 +107,19 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  readiness: {
-    color: colors.accent,
-    fontSize: 48,
+  goal: {
+    color: colors.text,
+    fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -1.5,
-    marginVertical: 4,
+    letterSpacing: -0.3,
+    marginVertical: 6,
   },
-  readinessUnit: {
+  unknown: {
     color: colors.muted,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    marginVertical: 4,
   },
   body: {
     color: colors.text,
@@ -162,8 +157,5 @@ const styles = StyleSheet.create({
     color: colors.accent,
     marginTop: 8,
     fontSize: 13,
-  },
-  error: {
-    color: colors.danger,
   },
 });

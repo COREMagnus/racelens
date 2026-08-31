@@ -197,6 +197,56 @@ describe('AI HTTP routes', () => {
     assert.match(prompt, /Not provided \(treat as unknown/);
   });
 
+  it('passes real goal fields and omits fabricated readiness when the profile is incomplete', async () => {
+    const app = createApp({ env: testEnv, aiClient: mockClient() });
+    const incomplete = await request(app)
+      .post('/coach/chat')
+      .send({ messages: [athleteMessage], athlete: { name: 'Sam' } });
+    assert.equal(incomplete.status, 200);
+    assert.doesNotMatch(incomplete.body.reply.content, /readiness 74/i);
+    assert.doesNotMatch(incomplete.body.reply.content, /Bike-run brick/);
+    assert.match(incomplete.body.reply.content, /race goal/);
+
+    const withGoal = await request(app)
+      .post('/coach/chat')
+      .send({
+        messages: [athleteMessage],
+        athlete: {
+          name: 'Sam',
+          raceDistance: '70.3',
+          raceGoalDate: '2026-11-08',
+          weeklyVolumeHours: 8,
+          experienceLevel: 'intermediate',
+          constraints: 'Sore left knee',
+        },
+        weekPlan: {
+          weekStart: '2026-08-17',
+          theme: 'Starter week · 70.3 · 11 weeks out',
+          readinessNote: 'Starter week from your race goal and typical weekly volume. Readiness unknown — not from sleep or HRV.',
+          kind: 'starter',
+          sessions: [
+            {
+              id: 'starter_saturday_brick',
+              weekday: 'saturday',
+              date: '2026-08-22',
+              sport: 'brick',
+              title: 'Bike-run brick',
+              durationMin: 90,
+              intensity: 'mod',
+              focus: 'Mostly bike, then a short off-bike run.',
+            },
+          ],
+        },
+      });
+    assert.equal(withGoal.status, 200);
+    assert.match(withGoal.body.reply.content, /70\.3 on 2026-11-08/);
+    assert.match(withGoal.body.reply.content, /Typical weekly volume: 8 hours/);
+    assert.match(withGoal.body.reply.content, /Sore left knee/);
+    assert.match(withGoal.body.reply.content, /Starter week · 70\.3/);
+    assert.doesNotMatch(withGoal.body.reply.content, /Readiness: 74/);
+    assert.doesNotMatch(withGoal.body.reply.content, /readiness 74/i);
+  });
+
   it('passes real readiness, sessions, and week plan through to the coach prompt', async () => {
     const app = createApp({ env: testEnv, aiClient: mockClient() });
     const res = await request(app)

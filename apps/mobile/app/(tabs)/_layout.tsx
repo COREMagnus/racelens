@@ -1,6 +1,7 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { StyleSheet, Text, type ColorValue } from 'react-native';
 
+import { useProfile } from '../../src/state/profile';
 import { colors } from '../../src/theme';
 
 function TabGlyph({ label, color }: { label: string; color: ColorValue }) {
@@ -8,6 +9,11 @@ function TabGlyph({ label, color }: { label: string; color: ColorValue }) {
 }
 
 export default function TabsLayout() {
+  const { loaded, hasCompletedOnboarding } = useProfile();
+  if (loaded && !hasCompletedOnboarding) {
+    return <Redirect href="/onboarding" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

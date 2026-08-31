@@ -1,5 +1,6 @@
 import type { CoachMessage } from '@racelens/shared';
-import { useRef, useState } from 'react';
+import { generateStarterWeek, hasRaceGoal, raceGoalLabel } from '@racelens/shared';
+import { useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -14,21 +15,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRODUCT_KICKER, PRODUCT_NAME, PRODUCT_TAGLINE } from '../../src/branding';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { chatWithCoach } from '../../src/lib/api';
+import { buildCoachChatRequest } from '../../src/lib/coach-payload';
 import { useProfile } from '../../src/state/profile';
 import { colors, radius, spacing } from '../../src/theme';
 
 export default function CoachScreen() {
   const { profile } = useProfile();
+  const starterWeek = useMemo(() => generateStarterWeek(profile), [profile]);
   const scrollRef = useRef<ScrollView>(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<CoachMessage[]>([
+  const [messages, setMessages] = useState<CoachMessage[]>(() => [
     {
       id: 'welcome',
       role: 'coach',
-      content:
-        `I'm your ${PRODUCT_NAME} coach. I turn training into structured sessions and coaching that adapts to your readiness, goals, and schedule. Ask about today's session, fatigue, or how to adapt the week.`,
+      content: welcomeCopy(profile.name, hasRaceGoal(profile)),
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -50,7 +52,8 @@ export default function CoachScreen() {
     setError(null);
 
     try {
-      const { reply } = await chatWithCoach(next, profile);
+      const body = buildCoachChatRequest(next, profile, starterWeek ? { weekPlan: starterWeek } : {});
+      const { reply } = await chatWithCoach(body);
       setMessages([...next, reply]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coach is unavailable');
@@ -70,6 +73,7 @@ export default function CoachScreen() {
           <Text style={styles.kicker}>{PRODUCT_KICKER}</Text>
           <Text style={styles.title}>Coach</Text>
           <Text style={styles.subtitle}>{PRODUCT_TAGLINE}</Text>
+          <Text style={styles.goal}>{raceGoalLabel(profile)}</Text>
         </View>
         <ScrollView
           ref={scrollRef}
@@ -111,6 +115,14 @@ export default function CoachScreen() {
   );
 }
 
+function welcomeCopy(name: string, hasGoal: boolean): string {
+  const who = name.trim() || 'there';
+  if (hasGoal) {
+    return `I'm your ${PRODUCT_NAME} coach, ${who}. I'll use your race goal and typical volume. Readiness and recent sessions are unknown until you log them.`;
+  }
+  return `I'm your ${PRODUCT_NAME} coach, ${who}. You don't have a race goal yet, so I won't invent a plan, readiness score, or recovery metrics. Ask anything about triathlon training.`;
+}
+
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
@@ -138,6 +150,12 @@ const styles = StyleSheet.create({
   subtitle: {
     color: colors.muted,
     marginTop: 4,
+  },
+  goal: {
+    color: colors.accent,
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '700',
   },
   thread: {
     paddingHorizontal: spacing.lg,

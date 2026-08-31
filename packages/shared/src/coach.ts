@@ -1,4 +1,4 @@
-import type { AthleteProfile } from './athlete';
+import type { ExperienceLevel, RaceDistance } from './athlete';
 import type { WeekPlan } from './plan';
 import type { Session } from './session';
 
@@ -11,8 +11,15 @@ export interface CoachMessage {
   createdAt: string;
 }
 
-export interface AthleteContext extends AthleteProfile {
+/** Coach-facing athlete fields. Only real values — omit unknowns. */
+export interface AthleteContext {
+  name: string;
+  raceGoalDate?: string;
+  raceDistance?: RaceDistance;
   readinessScore?: number;
+  weeklyVolumeHours?: number;
+  experienceLevel?: ExperienceLevel;
+  constraints?: string;
 }
 
 export interface CoachChatRequest {

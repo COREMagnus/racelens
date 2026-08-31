@@ -1,8 +1,7 @@
 import type {
   AnalyzeSessionRequest,
-  AthleteContext,
+  CoachChatRequest,
   CoachChatResponse,
-  CoachMessage,
   Session,
   WeekPlan,
 } from '@racelens/shared';
@@ -41,13 +40,10 @@ export function analyzeSession(body: AnalyzeSessionRequest): Promise<Session> {
   });
 }
 
-export function chatWithCoach(
-  messages: CoachMessage[],
-  athlete: AthleteContext,
-): Promise<CoachChatResponse> {
+export function chatWithCoach(body: CoachChatRequest): Promise<CoachChatResponse> {
   return request('/coach/chat', {
     method: 'POST',
-    body: JSON.stringify({ messages, athlete }),
+    body: JSON.stringify(body),
   });
 }
 
