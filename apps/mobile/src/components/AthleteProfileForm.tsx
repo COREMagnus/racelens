@@ -156,7 +156,7 @@ export function AthleteProfileForm({
         }}
         style={styles.input}
         keyboardType="decimal-pad"
-        placeholder="8"
+        placeholder="e.g. 8"
         placeholderTextColor={colors.muted}
       />
       <Text style={styles.hint}>Your current typical week — not a goal week.</Text>

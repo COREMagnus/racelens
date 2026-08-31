@@ -1,6 +1,6 @@
 import type { CoachMessage } from '@racelens/shared';
 import { generateStarterWeek, hasRaceGoal, raceGoalLabel } from '@racelens/shared';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -34,6 +34,15 @@ export default function CoachScreen() {
       createdAt: new Date().toISOString(),
     },
   ]);
+
+  useEffect(() => {
+    const nextWelcome = welcomeCopy(profile.name, hasRaceGoal(profile));
+    setMessages((current) => {
+      if (current.length !== 1 || current[0]?.id !== 'welcome') return current;
+      if (current[0].content === nextWelcome) return current;
+      return [{ ...current[0], content: nextWelcome }];
+    });
+  }, [profile]);
 
   async function send() {
     const content = input.trim();
