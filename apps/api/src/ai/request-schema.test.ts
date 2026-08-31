@@ -82,12 +82,72 @@ describe('request schemas', () => {
     assert.equal(parsed.recentSessions, undefined);
   });
 
-  it('rejects a shallow / incomplete athlete object', () => {
-    const result = coachChatRequestSchema.safeParse({
+  it('rejects a missing or empty athlete name', () => {
+    const missing = coachChatRequestSchema.safeParse({
       messages: [],
+      athlete: {},
+    });
+    const empty = coachChatRequestSchema.safeParse({
+      messages: [],
+      athlete: { name: '' },
+    });
+    assert.equal(missing.success, false);
+    assert.equal(empty.success, false);
+  });
+
+  it('accepts a name-only athlete and optional goal / volume fields', () => {
+    const nameOnly = coachChatRequestSchema.parse({
+      messages: [message(1)],
       athlete: { name: 'Alex' },
     });
-    assert.equal(result.success, false);
+    assert.equal(nameOnly.athlete.raceDistance, undefined);
+    assert.equal(nameOnly.athlete.readinessScore, undefined);
+
+    const full = coachChatRequestSchema.parse({
+      messages: [message(1)],
+      athlete: {
+        name: 'Sam',
+        raceGoalDate: '2026-11-08',
+        raceDistance: 'Olympic',
+        weeklyVolumeHours: 8,
+        experienceLevel: 'beginner',
+        constraints: 'Limited pool access',
+      },
+      weekPlan: {
+        weekStart: '2026-08-17',
+        theme: 'Starter week · Olympic',
+        readinessNote: 'Readiness unknown',
+        kind: 'starter',
+        sessions: [planned(1)],
+      },
+    });
+    assert.equal(full.athlete.weeklyVolumeHours, 8);
+    assert.equal(full.weekPlan?.kind, 'starter');
+    assert.equal(full.weekPlan?.readinessScore, undefined);
+  });
+
+  it('rejects oversized constraints and invalid experience / distance', () => {
+    assert.equal(
+      coachChatRequestSchema.safeParse({
+        messages: [message(1)],
+        athlete: { ...athlete, constraints: 'c'.repeat(501) },
+      }).success,
+      false,
+    );
+    assert.equal(
+      coachChatRequestSchema.safeParse({
+        messages: [message(1)],
+        athlete: { ...athlete, experienceLevel: 'pro' },
+      }).success,
+      false,
+    );
+    assert.equal(
+      coachChatRequestSchema.safeParse({
+        messages: [message(1)],
+        athlete: { ...athlete, raceDistance: 'none' },
+      }).success,
+      false,
+    );
   });
 
   it('rejects an invalid week plan instead of accepting sample-shaped junk', () => {
