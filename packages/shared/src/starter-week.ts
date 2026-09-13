@@ -72,6 +72,18 @@ export function resolveWeekPlan(profile: AthleteProfile, now = new Date()): Week
   return generateStarterWeek(profile, now) ?? sampleWeekPlan(now);
 }
 
+/** Prefer a persisted starter week; never fall back to a stored demo. */
+export function displayWeekPlan(
+  profile: AthleteProfile,
+  persisted: WeekPlan | null,
+  now = new Date(),
+): WeekPlan {
+  if (persisted && persisted.kind === 'starter') {
+    return persisted;
+  }
+  return resolveWeekPlan(profile, now);
+}
+
 function applyPhase(hours: number, weeksOut: number | null): number {
   if (weeksOut == null) return hours;
   if (weeksOut <= 2) return Math.max(3, hours * 0.5);

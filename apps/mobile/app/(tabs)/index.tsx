@@ -1,9 +1,9 @@
 import type { PlannedSession } from '@racelens/shared';
 import {
+  displayWeekPlan,
   isDemoWeekPlan,
   planBanner,
   raceGoalLabel,
-  resolveWeekPlan,
   weeklyVolumeHours,
 } from '@racelens/shared';
 import { useMemo } from 'react';
@@ -17,8 +17,8 @@ import { useProfile } from '../../src/state/profile';
 import { colors, spacing } from '../../src/theme';
 
 export default function HomeScreen() {
-  const { profile } = useProfile();
-  const plan = useMemo(() => resolveWeekPlan(profile), [profile]);
+  const { profile, weekPlan } = useProfile();
+  const plan = useMemo(() => displayWeekPlan(profile, weekPlan), [profile, weekPlan]);
   const today = useMemo(() => todaySessions(plan.sessions), [plan]);
   const demo = isDemoWeekPlan(plan);
   const volume = weeklyVolumeHours(profile.weeklyVolume);

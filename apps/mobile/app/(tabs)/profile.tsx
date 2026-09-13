@@ -4,11 +4,14 @@ import { StyleSheet, Text } from 'react-native';
 
 import { AthleteProfileForm } from '../../src/components/AthleteProfileForm';
 import { Card } from '../../src/components/Card';
+import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Screen } from '../../src/components/Screen';
+import { useAuth } from '../../src/state/auth';
 import { useProfile } from '../../src/state/profile';
 import { colors, spacing } from '../../src/theme';
 
 export default function ProfileScreen() {
+  const { user, signOut } = useAuth();
   const { profile, saveProfile } = useProfile();
 
   async function onSubmit(next: AthleteProfile) {
@@ -20,6 +23,12 @@ export default function ProfileScreen() {
       title="Profile"
       subtitle="Edit your race goal and training basics. Missing fields stay unknown — TriAdapt will not invent readiness or a plan."
     >
+      <Card>
+        <Text style={styles.kicker}>Account</Text>
+        <Text style={styles.goal}>{user?.email ?? 'Signed in'}</Text>
+        <Text style={styles.meta}>Profile, sessions, and plan sync to this account.</Text>
+        <PrimaryButton label="Sign out" tone="ghost" onPress={() => void signOut()} style={styles.signOut} />
+      </Card>
       <Card>
         <Text style={styles.kicker}>Current goal</Text>
         <Text style={styles.goal}>{raceGoalLabel(profile)}</Text>
@@ -43,5 +52,13 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     marginBottom: spacing.xs,
+  },
+  meta: {
+    color: colors.muted,
+    fontSize: 13,
+    marginBottom: spacing.sm,
+  },
+  signOut: {
+    marginTop: spacing.xs,
   },
 });

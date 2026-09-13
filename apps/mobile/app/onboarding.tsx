@@ -3,13 +3,19 @@ import { Redirect, router } from 'expo-router';
 
 import { AthleteProfileForm } from '../src/components/AthleteProfileForm';
 import { Screen } from '../src/components/Screen';
+import { useAuth } from '../src/state/auth';
 import { useProfile } from '../src/state/profile';
 
 export default function OnboardingScreen() {
+  const { loaded: authLoaded, token } = useAuth();
   const { profile, loaded, hasCompletedOnboarding, saveProfile } = useProfile();
 
-  if (!loaded) {
+  if (!authLoaded || !loaded) {
     return null;
+  }
+
+  if (!token) {
+    return <Redirect href="/sign-in" />;
   }
 
   if (hasCompletedOnboarding) {

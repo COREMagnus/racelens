@@ -8,6 +8,7 @@ import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Screen } from '../../src/components/Screen';
 import { SessionPreview } from '../../src/components/SessionPreview';
 import { analyzeSession } from '../../src/lib/api';
+import { useProfile } from '../../src/state/profile';
 import {
   VoiceCaptureError,
   captureWatchOrBoardPhoto,
@@ -19,6 +20,7 @@ import {
 import { colors, radius, spacing } from '../../src/theme';
 
 export default function LogScreen() {
+  const { sessions, confirmSession } = useProfile();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const [text, setText] = useState('45 min easy bike, RPE 4, felt smooth');
@@ -131,8 +133,17 @@ export default function LogScreen() {
         <SessionPreview
           session={draft}
           onConfirm={(session) => {
-            setConfirmed(session);
-            setDraft(null);
+            void (async () => {
+              try {
+                await confirmSession(session);
+                setConfirmed(session);
+                setDraft(null);
+              } catch (err) {
+                setConfirmed(session);
+                setDraft(null);
+                setError(err instanceof Error ? err.message : 'Saved locally; server sync failed');
+              }
+            })();
           }}
         />
       ) : null}
@@ -145,6 +156,17 @@ export default function LogScreen() {
             {confirmed.rpe} · load {confirmed.load}
           </Text>
           <Text style={styles.meta}>{confirmed.notes}</Text>
+        </Card>
+      ) : null}
+
+      {sessions.length > 0 ? (
+        <Card>
+          <Text style={styles.confirmedTitle}>Recent sessions</Text>
+          {sessions.slice(0, 8).map((session) => (
+            <Text key={session.id} style={styles.body}>
+              {session.sport} · {session.durationMin} min · {session.intensity} · {session.startedAt.slice(0, 10)}
+            </Text>
+          ))}
         </Card>
       ) : null}
     </Screen>

@@ -10,18 +10,19 @@ v1 is **athlete self-coach only** — there is no coach dashboard yet. First lau
 
 ```
 apps/mobile     Expo (React Native) + TypeScript, Expo Router tabs
-apps/api        Express + TypeScript API (OpenAI analyze + coach)
-packages/shared Session, plan, coach, and athlete types
+apps/api        Express + TypeScript API (auth, SQLite persistence, OpenAI analyze + coach)
+packages/shared Session, plan, coach, athlete, and auth types
 ```
 
 Workspaces use **npm**.
 
 ## Prerequisites
 
-- Node.js 20.19+ (Expo SDK 57 targets modern Node; 22.13+ is preferred)
+- Node.js **22.13+** for the API (built-in `node:sqlite`). Mobile/Expo still targets 20.19+; 22.13+ is preferred for the whole repo.
 - npm 10+
 - Expo Go or a simulator/emulator for the mobile app
-- An OpenAI API key for **local** session analyze and coach (never commit it; never put it in `EXPO_PUBLIC_*`)
+- An OpenAI API key for session analyze and coach (never commit it; never put it in `EXPO_PUBLIC_*`)
+- **No cloud vendor account** is required. Auth is email/password; data lives in a local SQLite file.
 
 ## Install
 
@@ -40,11 +41,16 @@ cp apps/api/.env.example apps/api/.env
 | Variable | Where | Purpose |
 | --- | --- | --- |
 | `PORT` | `apps/api` | API port. Defaults to `3001`. |
-| `OPENAI_API_KEY` | `apps/api` only | Required for local `POST /sessions/analyze` and `POST /coach/chat`. Missing key → **503**. Never expose to the mobile app. |
+| `OPENAI_API_KEY` | `apps/api` only | Required for `POST /sessions/analyze` and `POST /coach/chat`. Missing key → **503**. Never expose to the mobile app. |
 | `OPENAI_TEXT_MODEL` | `apps/api` | Text + coach model. Default **`gpt-4.1-mini`**. |
 | `OPENAI_VISION_MODEL` | `apps/api` | Photo / watch-screen model. Default **`gpt-4o-mini`**. |
 | `OPENAI_TRANSCRIBE_MODEL` | `apps/api` | Voice audio model. Default **`whisper-1`**. |
-| `NODE_ENV` | `apps/api` | When `production`, analyze + coach return **503** until real user-auth middleware exists. Local dev stays enabled. |
+| `NODE_ENV` | `apps/api` | When `production`, analyze + coach require a valid Bearer session (**401** without one). Local/dev still allows those routes without a session. |
+| `DATABASE_PATH` | `apps/api` | SQLite file. Default `./data/triadapt.sqlite` (created on first run). Tests use `:memory:` unless overridden. |
+| `AUTH_SESSION_DAYS` | `apps/api` | Bearer session lifetime. Default `30`. Only a SHA-256 hash of the token is stored. |
+| `AUTH_SCRYPT_N` | `apps/api` | scrypt cost (power of 2). Default `16384` locally; tests use `4`. |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | `apps/api` | Per-IP window for `/auth/register` and `/auth/login`. Default `60000`. |
+| `AUTH_RATE_LIMIT_MAX` | `apps/api` | Max auth requests per window. Default `20`. `0` disables (tests). |
 | `CORS_ORIGINS` | `apps/api` | Comma-separated browser origins. No `Origin` header (native) is allowed. Production rejects unlisted browser origins. |
 | `AI_RATE_LIMIT_WINDOW_MS` | `apps/api` | Per-IP window for AI routes. Default `60000`. |
 | `AI_RATE_LIMIT_MAX` | `apps/api` | Max AI requests per window. Default `30`. `0` disables (tests). |
@@ -67,16 +73,39 @@ On a physical device, set `EXPO_PUBLIC_API_URL` to your machine's LAN address (A
 cp apps/mobile/.env.example apps/mobile/.env
 ```
 
+## Auth + database (local)
+
+Email/password accounts and athlete data use **SQLite on the API host**. There is no Auth0/Clerk/Supabase step and no shared secret in the mobile app.
+
+```bash
+cp apps/api/.env.example apps/api/.env
+npm run dev:api
+```
+
+The API creates `apps/api/data/triadapt.sqlite` (or `DATABASE_PATH`) on first request. CI and `npm test` use an in-memory database — no hosted cloud DB.
+
+| Route | Auth | Purpose |
+| --- | --- | --- |
+| `POST /auth/register` | public | `{ email, password }` → `{ token, user, profile, sessions, plan }` |
+| `POST /auth/login` | public | Same shape. Email is normalized to lowercase. |
+| `POST /auth/logout` | bearer | Deletes the current session. |
+| `GET /me` | bearer | Snapshot used after sign-in / new install. |
+| `PUT /me/profile` | bearer | Saves the athlete profile and a generated starter week (never a demo week). |
+| `GET/POST /me/sessions` | bearer | Confirmed / logged sessions. |
+| `GET/PUT /me/plan` | bearer | Week-plan state. `kind: "demo"` is rejected (**400**). |
+
+Mobile stores the bearer token in AsyncStorage (`racelens.auth.v1`) and sends `Authorization: Bearer <token>`. The raw token is not a shared API key; each login issues a new random value.
+
 ## Run the API
 
 ```bash
 npm run dev:api
 ```
 
-- `GET /health` — liveness; `ai` is `openai`, `unconfigured`, or `disabled-production`
-- `POST /sessions/analyze` — `{ type: "photo" \| "voice" \| "text", payload: string }` → `Session` (local/dev only)
-- `POST /coach/chat` — `{ messages, athlete, recentSessions?, weekPlan? }` → `{ reply }` (local/dev only)
-- `GET /plan/week` — **sample demo week**. Labeled as demo. Never used to ground Coach. Home/Plan generate a labeled starter week on-device when a race goal + weekly volume exist (deterministic heuristic, no OpenAI).
+- `GET /health` — liveness; `ai` is `openai` or `unconfigured`. `aiAccess` is `local` or `authenticated`. Also reports `auth: email-password` and `database: sqlite`.
+- `POST /sessions/analyze` — `{ type: "photo" \| "voice" \| "text", payload: string }` → `Session` (local/dev without a session; **production requires a signed-in user**)
+- `POST /coach/chat` — `{ messages, athlete, recentSessions?, weekPlan? }` → `{ reply }` (same gating)
+- `GET /plan/week` — **sample demo week**. Labeled as demo. Never used to ground Coach. Home/Plan use a persisted starter week after sign-in, or generate one from the saved goal.
 
 Analyze payloads (string, same shape the mobile Log tab sends):
 
@@ -88,7 +117,7 @@ Analyze payloads (string, same shape the mobile Log tab sends):
 
 Coach uses only athlete fields, recent sessions, and week plan that the client actually sent. Missing readiness / sessions / plan / race goal are treated as unknown — the sample week is never substituted. A starter week is sent only when it was generated from the athlete’s saved goal and volume.
 
-Unusable model JSON returns **422**. Bad request bodies return **400**. OpenAI outages return **502**. Production without auth middleware returns **503**.
+Unusable model JSON returns **422**. Bad request bodies return **400**. OpenAI outages return **502**. Production without a valid session returns **401**. Missing `OPENAI_API_KEY` still returns **503**.
 
 Typecheck:
 
@@ -118,17 +147,17 @@ With the API running **and** `OPENAI_API_KEY` set:
 npm run dev:mobile
 ```
 
-Then press `i` (iOS), `a` (Android), or `w` (web). Tabs:
+Then press `i` (iOS), `a` (Android), or `w` (web).
 
-First launch shows **onboarding** (blocking) until a display name, race distance (or “not racing yet”), goal date when racing, and typical weekly volume are saved. Profile can edit those later.
+First launch shows **create account / sign in**. After sign-in, **onboarding** is blocking until a display name, race distance (or “not racing yet”), goal date when racing, and typical weekly volume are saved. Those fields, confirmed sessions, and the starter week then live on the server and reload on a new install. Profile can edit the goal later.
 
 | Tab | What you get |
 | --- | --- |
 | Home | Race goal + weeks out, or **No race goal yet**. Readiness stays **unknown**. Today’s sessions from a labeled starter week, or a labeled demo week. |
-| Log | Photo / Voice / Text capture → structured session preview → confirm |
+| Log | Photo / Voice / Text capture → structured session preview → confirm (synced) |
 | Plan | Starter week from goal + volume, or **Demo plan — not based on your goal** |
 | Coach | Chat UI against `POST /coach/chat` (real profile / starter week only; no fabricated readiness) |
-| Profile | Name, race distance (incl. not racing), goal date, weekly volume, optional experience and constraints |
+| Profile | Account email, sign out, name, race distance (incl. not racing), goal date, weekly volume, optional experience and constraints |
 
 Photo uses `expo-image-picker` + `expo-camera` and sends a data URI when the picker provides base64. Voice uses `expo-audio` plus **Expo FileSystem** to read the recording into a data URI (no `fetch(file://...)`). See `apps/mobile/VOICE_DEVICE_TEST.md` for the iOS/Android checklist.
 
@@ -143,11 +172,11 @@ These `racelens` technical identifiers are **intentionally retained** (compatibi
 | GitHub repository `COREMagnus/racelens` | remote origin | Do not rename the remote repository from this PR. |
 | npm workspaces `racelens`, `@racelens/api`, `@racelens/mobile`, `@racelens/shared` | `package.json` / imports | Private unpublished workspaces already wired to the GitHub repo name. No published npm packages exist; changing scopes would churn the lockfile without a user-facing benefit while the remote repo stays `racelens`. |
 | iOS `bundleIdentifier` / Android `package` `org.racelens.app` | `apps/mobile/app.json` | No App Store Connect or Play Console access from this environment, so store/provisioning use cannot be ruled out. |
-| AsyncStorage key `racelens.athlete.v1` | `apps/mobile/src/state/profile.tsx` | Preserves any local athlete profile already saved on a device running an earlier build. |
+| AsyncStorage key `racelens.athlete.v1` | `apps/mobile/src/state/profile.tsx` | Preserves any local athlete profile already saved on a device running an earlier build. Companion keys `racelens.auth.v1`, `racelens.sessions.v1`, and `racelens.plan.v1` are new local caches; the server is the source of truth after sign-in. |
 
 ## Shared types
 
-`packages/shared` exports `Session`, `WeekPlan`, `CoachMessage`, `AthleteProfile`, and the analyze / chat request shapes. Intensity is `z1`–`z5` or `easy` / `mod` / `hard`. Sport is `swim` | `bike` | `run` | `brick` | `other`.
+`packages/shared` exports `Session`, `WeekPlan`, `CoachMessage`, `AthleteProfile`, auth snapshot types, and the analyze / chat request shapes. Intensity is `z1`–`z5` or `easy` / `mod` / `hard`. Sport is `swim` | `bike` | `run` | `brick` | `other`.
 
 ## Scripts
 

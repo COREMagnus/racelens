@@ -2,6 +2,7 @@
   "all": true,
   "include": [
     "src/ai/**/*.ts",
+    "src/db/**/*.ts",
     "src/lib/**/*.ts",
     "src/routes/**/*.ts",
     "src/middleware/**/*.ts",
