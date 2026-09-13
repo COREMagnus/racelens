@@ -73,12 +73,13 @@ function toMessage(message: ParsedCoachChatRequest['messages'][number]): CoachMe
 function toAthleteContext(athlete: ParsedCoachChatRequest['athlete']): AthleteContext {
   const next: AthleteContext = {
     name: athlete.name,
-    raceGoalDate: athlete.raceGoalDate,
-    raceDistance: athlete.raceDistance,
   };
-  if (typeof athlete.readinessScore === 'number') {
-    next.readinessScore = athlete.readinessScore;
-  }
+  if (athlete.raceGoalDate) next.raceGoalDate = athlete.raceGoalDate;
+  if (athlete.raceDistance) next.raceDistance = athlete.raceDistance;
+  if (typeof athlete.readinessScore === 'number') next.readinessScore = athlete.readinessScore;
+  if (typeof athlete.weeklyVolumeHours === 'number') next.weeklyVolumeHours = athlete.weeklyVolumeHours;
+  if (athlete.experienceLevel) next.experienceLevel = athlete.experienceLevel;
+  if (athlete.constraints) next.constraints = athlete.constraints;
   return next;
 }
 
@@ -97,13 +98,15 @@ function toSession(session: NonNullable<ParsedCoachChatRequest['recentSessions']
 }
 
 function toWeekPlan(plan: NonNullable<ParsedCoachChatRequest['weekPlan']>): WeekPlan {
-  return {
+  const next: WeekPlan = {
     weekStart: plan.weekStart,
     theme: plan.theme,
-    readinessScore: plan.readinessScore,
     readinessNote: plan.readinessNote,
     sessions: plan.sessions.map(toPlannedSession),
   };
+  if (typeof plan.readinessScore === 'number') next.readinessScore = plan.readinessScore;
+  if (plan.kind) next.kind = plan.kind;
+  return next;
 }
 
 function toPlannedSession(

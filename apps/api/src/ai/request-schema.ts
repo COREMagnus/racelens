@@ -1,4 +1,5 @@
 import {
+  EXPERIENCE_LEVELS,
   INTENSITY_FEELS,
   INTENSITY_ZONES,
   RACE_DISTANCES,
@@ -24,6 +25,11 @@ const raceValues = [...RACE_DISTANCES] as [
   ...(typeof RACE_DISTANCES)[number][],
 ];
 
+const experienceValues = [...EXPERIENCE_LEVELS] as [
+  (typeof EXPERIENCE_LEVELS)[number],
+  ...(typeof EXPERIENCE_LEVELS)[number][],
+];
+
 const weekdayValues = [
   'monday',
   'tuesday',
@@ -47,9 +53,12 @@ export function createCoachChatRequestSchema(limits: AiLimits) {
 
   const athleteContextSchema = z.object({
     name: z.string().min(1).max(limits.maxNameChars),
-    raceGoalDate: date,
-    raceDistance: z.enum(raceValues),
+    raceGoalDate: date.optional(),
+    raceDistance: z.enum(raceValues).optional(),
     readinessScore: z.number().min(0).max(100).optional(),
+    weeklyVolumeHours: z.number().min(0).max(168).optional(),
+    experienceLevel: z.enum(experienceValues).optional(),
+    constraints: z.string().max(limits.maxNoteFieldChars).optional(),
   });
 
   const coachMessageSchema = z.object({
@@ -86,9 +95,10 @@ export function createCoachChatRequestSchema(limits: AiLimits) {
   const weekPlanSchema = z.object({
     weekStart: date,
     theme: z.string().min(1).max(limits.maxThemeChars),
-    readinessScore: z.number(),
+    readinessScore: z.number().min(0).max(100).optional(),
     readinessNote: z.string().max(limits.maxNoteFieldChars),
     sessions: z.array(plannedSessionSchema).max(limits.maxWeekPlanSessions),
+    kind: z.enum(['demo', 'starter']).optional(),
   });
 
   return z.object({

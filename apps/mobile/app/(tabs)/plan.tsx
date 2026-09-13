@@ -1,46 +1,27 @@
-import type { WeekPlan } from '@racelens/shared';
-import { useEffect, useState } from 'react';
+import { isDemoWeekPlan, planBanner, raceGoalLabel, resolveWeekPlan } from '@racelens/shared';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '../../src/components/Card';
 import { Screen } from '../../src/components/Screen';
 import { SportBadge } from '../../src/components/SportBadge';
-import { getWeekPlan } from '../../src/lib/api';
+import { useProfile } from '../../src/state/profile';
 import { colors, spacing, sportColor } from '../../src/theme';
 
 export default function PlanScreen() {
-  const [plan, setPlan] = useState<WeekPlan | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void getWeekPlan()
-      .then((week) => {
-        if (!cancelled) setPlan(week);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Could not load week');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { profile } = useProfile();
+  const plan = useMemo(() => resolveWeekPlan(profile), [profile]);
+  const demo = isDemoWeekPlan(plan);
 
   return (
-    <Screen
-      title="Plan"
-      subtitle={plan?.theme ?? 'Sample demo week (not used by Coach).'}
-    >
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {plan ? (
-        <Card>
-          <Text style={styles.kicker}>Sample demo · week of {plan.weekStart}</Text>
-          <Text style={styles.body}>{plan.readinessNote}</Text>
-        </Card>
-      ) : null}
-      {(plan?.sessions ?? []).map((session) => (
+    <Screen title="Plan" subtitle={planBanner(plan)}>
+      <Card>
+        <Text style={styles.kicker}>{demo ? 'Demo plan — not based on your goal' : 'Starter week from your goal'}</Text>
+        <Text style={styles.goal}>{raceGoalLabel(profile)}</Text>
+        <Text style={styles.body}>{plan.readinessNote}</Text>
+        <Text style={styles.meta}>Week of {plan.weekStart} · readiness unknown</Text>
+      </Card>
+      {plan.sessions.map((session) => (
         <Card key={session.id} accent={sportColor[session.sport]}>
           <View style={styles.row}>
             <Text style={styles.day}>{session.weekday}</Text>
@@ -66,6 +47,12 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '700',
     marginBottom: 6,
+  },
+  goal: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
@@ -98,12 +85,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 20,
   },
+  meta: {
+    color: colors.muted,
+    marginTop: spacing.sm,
+    fontSize: 13,
+  },
   adaptive: {
     color: colors.accent,
     marginTop: 8,
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.sm,
   },
 });

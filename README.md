@@ -4,7 +4,7 @@
 
 TriAdapt turns workout data into structured sessions and personalized coaching that adapts to the athlete’s training, readiness, goals, and schedule. Athletes capture training from a watch photo, whiteboard, voice note, or text. OpenAI turns that capture into a structured session (sport, duration, intensity, load, RPE). An adaptive weekly plan and an in-app coach sit on top.
 
-v1 is **athlete self-coach only** — there is no coach dashboard yet.
+v1 is **athlete self-coach only** — there is no coach dashboard yet. First launch collects a real athlete profile and race goal so Home, Plan, and Coach stop using unlabeled demo data.
 
 ## Monorepo
 
@@ -76,7 +76,7 @@ npm run dev:api
 - `GET /health` — liveness; `ai` is `openai`, `unconfigured`, or `disabled-production`
 - `POST /sessions/analyze` — `{ type: "photo" \| "voice" \| "text", payload: string }` → `Session` (local/dev only)
 - `POST /coach/chat` — `{ messages, athlete, recentSessions?, weekPlan? }` → `{ reply }` (local/dev only)
-- `GET /plan/week` — **sample demo week**. Labeled as demo. Never used to ground Coach.
+- `GET /plan/week` — **sample demo week**. Labeled as demo. Never used to ground Coach. Home/Plan generate a labeled starter week on-device when a race goal + weekly volume exist (deterministic heuristic, no OpenAI).
 
 Analyze payloads (string, same shape the mobile Log tab sends):
 
@@ -86,7 +86,7 @@ Analyze payloads (string, same shape the mobile Log tab sends):
 | `photo` | Image data URI, `https` URL, or raw base64 | Vision model reads watch / whiteboard / card. A local `photo:<uri> — description` fallback is treated as text. |
 | `voice` | Transcript text **or** audio data URI | Transcript → same as text. Audio data URI → Whisper, then structure. **Remote audio URLs are rejected (400).** |
 
-Coach uses only athlete fields, recent sessions, and week plan that the client actually sent. Missing readiness / sessions / plan are treated as unknown — the sample week is never substituted.
+Coach uses only athlete fields, recent sessions, and week plan that the client actually sent. Missing readiness / sessions / plan / race goal are treated as unknown — the sample week is never substituted. A starter week is sent only when it was generated from the athlete’s saved goal and volume.
 
 Unusable model JSON returns **422**. Bad request bodies return **400**. OpenAI outages return **502**. Production without auth middleware returns **503**.
 
@@ -120,13 +120,15 @@ npm run dev:mobile
 
 Then press `i` (iOS), `a` (Android), or `w` (web). Tabs:
 
+First launch shows **onboarding** (blocking) until a display name, race distance (or “not racing yet”), goal date when racing, and typical weekly volume are saved. Profile can edit those later.
+
 | Tab | What you get |
 | --- | --- |
-| Home | Today's planned sessions + **demo** readiness (not sent to Coach) |
+| Home | Race goal + weeks out, or **No race goal yet**. Readiness stays **unknown**. Today’s sessions from a labeled starter week, or a labeled demo week. |
 | Log | Photo / Voice / Text capture → structured session preview → confirm |
-| Plan | Sample demo week (not used by Coach) |
-| Coach | Chat UI against `POST /coach/chat` (profile only; no fabricated readiness) |
-| Profile | Name, race goal date, distance (Sprint / Olympic / 70.3 / Ironman) |
+| Plan | Starter week from goal + volume, or **Demo plan — not based on your goal** |
+| Coach | Chat UI against `POST /coach/chat` (real profile / starter week only; no fabricated readiness) |
+| Profile | Name, race distance (incl. not racing), goal date, weekly volume, optional experience and constraints |
 
 Photo uses `expo-image-picker` + `expo-camera` and sends a data URI when the picker provides base64. Voice uses `expo-audio` plus **Expo FileSystem** to read the recording into a data URI (no `fetch(file://...)`). See `apps/mobile/VOICE_DEVICE_TEST.md` for the iOS/Android checklist.
 
@@ -155,5 +157,5 @@ These `racelens` technical identifiers are **intentionally retained** (compatibi
 | `npm run dev:api` | API with reload |
 | `npm run dev:mobile` | Expo dev server |
 | `npm run typecheck` | `tsc --noEmit` across shared, api, and mobile |
-| `npm test` | API + mobile unit/integration tests (mocked OpenAI; coverage on API) |
+| `npm test` | Shared + API + mobile unit/integration tests (mocked OpenAI; coverage on API) |
 | `npm run export:web` | Noninteractive Expo web export (`apps/mobile`) |

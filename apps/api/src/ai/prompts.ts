@@ -1,9 +1,10 @@
-import type {
-  AthleteContext,
-  CaptureType,
-  CoachMessage,
-  Session,
-  WeekPlan,
+import {
+  daysUntil,
+  type AthleteContext,
+  type CaptureType,
+  type CoachMessage,
+  type Session,
+  type WeekPlan,
 } from '@racelens/shared';
 
 export const ANALYZE_SYSTEM_PROMPT = `You are TriAdapt session extraction. Turn an athlete's training capture into one structured triathlon session.
@@ -48,11 +49,7 @@ export function analyzeUserPrompt(type: CaptureType, text: string): string {
   return `Extract the structured session from this workout description:\n${trimmed}`;
 }
 
-export function daysUntil(isoDate: string, now = new Date()): number | null {
-  const target = Date.parse(isoDate);
-  if (Number.isNaN(target)) return null;
-  return Math.max(0, Math.ceil((target - now.getTime()) / 86_400_000));
-}
+export { daysUntil };
 
 export function buildCoachSystemPrompt(
   athlete: AthleteContext,
@@ -63,19 +60,34 @@ export function buildCoachSystemPrompt(
   } = {},
 ): string {
   const now = extras.now ?? new Date();
-  const days = daysUntil(athlete.raceGoalDate, now);
-  const raceLine =
-    days == null
-      ? `- Race: ${athlete.raceDistance} on ${athlete.raceGoalDate}`
-      : `- Race: ${athlete.raceDistance} on ${athlete.raceGoalDate} (${days} days out)`;
 
   const lines = [
     COACH_SYSTEM_PROMPT,
     '',
     'Athlete context:',
     `- Name: ${athlete.name || 'athlete'}`,
-    raceLine,
   ];
+
+  if (athlete.raceDistance) {
+    const days = athlete.raceGoalDate ? daysUntil(athlete.raceGoalDate, now) : null;
+    if (athlete.raceGoalDate && days != null) {
+      lines.push(`- Race: ${athlete.raceDistance} on ${athlete.raceGoalDate} (${days} days out)`);
+    } else if (athlete.raceGoalDate) {
+      lines.push(`- Race: ${athlete.raceDistance} on ${athlete.raceGoalDate}`);
+    } else {
+      lines.push(`- Race: ${athlete.raceDistance} (no race date)`);
+    }
+  }
+
+  if (typeof athlete.weeklyVolumeHours === 'number') {
+    lines.push(`- Typical weekly volume: ${athlete.weeklyVolumeHours} hours`);
+  }
+  if (athlete.experienceLevel) {
+    lines.push(`- Experience: ${athlete.experienceLevel}`);
+  }
+  if (athlete.constraints) {
+    lines.push(`- Constraints: ${athlete.constraints}`);
+  }
 
   if (typeof athlete.readinessScore === 'number') {
     lines.push(`- Readiness: ${athlete.readinessScore}`);
@@ -84,6 +96,9 @@ export function buildCoachSystemPrompt(
   if (extras.weekPlan) {
     lines.push('', `Week plan (${extras.weekPlan.weekStart}, theme: ${extras.weekPlan.theme}):`);
     lines.push(`Readiness note: ${extras.weekPlan.readinessNote}`);
+    if (typeof extras.weekPlan.readinessScore === 'number') {
+      lines.push(`Plan readiness score: ${extras.weekPlan.readinessScore}`);
+    }
     for (const session of extras.weekPlan.sessions) {
       lines.push(
         `- ${session.weekday} ${session.sport} ${session.durationMin}min ${session.intensity}: ${session.title} — ${session.focus}`,
@@ -101,6 +116,7 @@ export function buildCoachSystemPrompt(
   }
 
   const missing: string[] = [];
+  if (!athlete.raceDistance) missing.push('race goal');
   if (typeof athlete.readinessScore !== 'number') missing.push('readiness');
   if (!extras.weekPlan) missing.push('week plan');
   if (!extras.recentSessions || extras.recentSessions.length === 0) missing.push('recent sessions');

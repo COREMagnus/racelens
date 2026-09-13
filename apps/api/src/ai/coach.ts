@@ -66,14 +66,14 @@ function providedSessions(sessions: Session[] | undefined): Session[] | undefine
 }
 
 function providedAthlete(athlete: CoachChatRequest['athlete']): CoachChatRequest['athlete'] {
-  if (typeof athlete.readinessScore === 'number') {
-    return athlete;
-  }
-  return {
-    name: athlete.name,
-    raceGoalDate: athlete.raceGoalDate,
-    raceDistance: athlete.raceDistance,
-  };
+  const next: CoachChatRequest['athlete'] = { name: athlete.name };
+  if (athlete.raceGoalDate) next.raceGoalDate = athlete.raceGoalDate;
+  if (athlete.raceDistance) next.raceDistance = athlete.raceDistance;
+  if (typeof athlete.readinessScore === 'number') next.readinessScore = athlete.readinessScore;
+  if (typeof athlete.weeklyVolumeHours === 'number') next.weeklyVolumeHours = athlete.weeklyVolumeHours;
+  if (athlete.experienceLevel) next.experienceLevel = athlete.experienceLevel;
+  if (athlete.constraints) next.constraints = athlete.constraints;
+  return next;
 }
 
 function hasContent(message: CoachMessage): boolean {
