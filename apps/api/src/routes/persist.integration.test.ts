@@ -111,6 +111,30 @@ describe('authenticated persistence', () => {
     assert.equal(reload.body.profile.raceDistance, 'Olympic');
   });
 
+  it('rejects an invalid logged session and can clear a stored plan', async () => {
+    const app = createApp({ env: testEnv });
+    const token = await register(app, 'plan@example.com');
+    const saved = await request(app).put('/me/profile').set('Authorization', `Bearer ${token}`).send(profile);
+    assert.equal(saved.body.plan?.kind, 'starter');
+
+    const listed = await request(app).get('/me/sessions').set('Authorization', `Bearer ${token}`);
+    assert.equal(listed.status, 200);
+    assert.deepEqual(listed.body.sessions, []);
+
+    const bad = await request(app)
+      .post('/me/sessions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ id: 'ses_bad', sport: 'yoga' });
+    assert.equal(bad.status, 400);
+
+    const cleared = await request(app)
+      .put('/me/plan')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ plan: null });
+    assert.equal(cleared.status, 200);
+    assert.equal(cleared.body.plan, null);
+  });
+
   it('keeps athlete data isolated per account', async () => {
     const app = createApp({ env: testEnv });
     const sam = await register(app, 'a@example.com');
