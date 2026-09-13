@@ -2,6 +2,10 @@ export function isProduction(env: NodeJS.ProcessEnv = process.env): boolean {
   return (env.NODE_ENV ?? '').toLowerCase() === 'production';
 }
 
+export function isTest(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (env.NODE_ENV ?? '').toLowerCase() === 'test';
+}
+
 export function parseCsv(value: string | undefined): string[] {
   return (value ?? '')
     .split(',')

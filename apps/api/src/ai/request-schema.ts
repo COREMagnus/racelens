@@ -2,6 +2,7 @@ import {
   EXPERIENCE_LEVELS,
   INTENSITY_FEELS,
   INTENSITY_ZONES,
+  NOT_RACING,
   RACE_DISTANCES,
   SPORTS,
 } from '@racelens/shared';
@@ -40,6 +41,69 @@ const weekdayValues = [
   'sunday',
 ] as const;
 
+const raceDistanceChoiceValues = [...RACE_DISTANCES, NOT_RACING] as [
+  (typeof RACE_DISTANCES)[number] | typeof NOT_RACING,
+  ...((typeof RACE_DISTANCES)[number] | typeof NOT_RACING)[],
+];
+
+export function createSessionSchema(limits: AiLimits) {
+  const id = z.string().min(1).max(limits.maxIdChars);
+  const date = z.string().min(1).max(limits.maxDateChars);
+  return z.object({
+    id,
+    sport: z.enum(sportValues),
+    startedAt: date,
+    durationMin: z.number(),
+    intensity: z.enum(intensityValues),
+    load: z.number(),
+    rpe: z.number(),
+    notes: z.string().max(limits.maxSessionNotesChars),
+    source: z.enum(['photo', 'voice', 'text', 'manual']),
+  });
+}
+
+export function createWeekPlanSchema(limits: AiLimits) {
+  const id = z.string().min(1).max(limits.maxIdChars);
+  const date = z.string().min(1).max(limits.maxDateChars);
+  const plannedSessionSchema = z.object({
+    id,
+    weekday: z.enum(weekdayValues),
+    date,
+    sport: z.enum(sportValues),
+    title: z.string().min(1).max(limits.maxTitleChars),
+    durationMin: z.number(),
+    intensity: z.enum(intensityValues),
+    focus: z.string().max(limits.maxFocusChars),
+    adaptiveNote: z.string().max(limits.maxNoteFieldChars).optional(),
+  });
+  return z.object({
+    weekStart: date,
+    theme: z.string().min(1).max(limits.maxThemeChars),
+    readinessScore: z.number().min(0).max(100).optional(),
+    readinessNote: z.string().max(limits.maxNoteFieldChars),
+    sessions: z.array(plannedSessionSchema).max(limits.maxWeekPlanSessions),
+    kind: z.enum(['demo', 'starter']).optional(),
+  });
+}
+
+export function createAthleteProfileBodySchema(limits: AiLimits) {
+  return z.object({
+    name: z.string().max(limits.maxNameChars),
+    raceGoalDate: z.string().max(limits.maxDateChars),
+    raceDistance: z.enum(raceDistanceChoiceValues).optional(),
+    weeklyVolume: z
+      .object({
+        totalHours: z.number().optional(),
+        swimHours: z.number().optional(),
+        bikeHours: z.number().optional(),
+        runHours: z.number().optional(),
+      })
+      .optional(),
+    experienceLevel: z.enum(experienceValues).optional(),
+    constraints: z.string().max(limits.maxNoteFieldChars).optional(),
+  });
+}
+
 export function createAnalyzeRequestSchema(limits: AiLimits) {
   return z.object({
     type: z.enum(['photo', 'voice', 'text']),
@@ -68,44 +132,11 @@ export function createCoachChatRequestSchema(limits: AiLimits) {
     createdAt: date,
   });
 
-  const sessionSchema = z.object({
-    id,
-    sport: z.enum(sportValues),
-    startedAt: date,
-    durationMin: z.number(),
-    intensity: z.enum(intensityValues),
-    load: z.number(),
-    rpe: z.number(),
-    notes: z.string().max(limits.maxSessionNotesChars),
-    source: z.enum(['photo', 'voice', 'text', 'manual']),
-  });
-
-  const plannedSessionSchema = z.object({
-    id,
-    weekday: z.enum(weekdayValues),
-    date,
-    sport: z.enum(sportValues),
-    title: z.string().min(1).max(limits.maxTitleChars),
-    durationMin: z.number(),
-    intensity: z.enum(intensityValues),
-    focus: z.string().max(limits.maxFocusChars),
-    adaptiveNote: z.string().max(limits.maxNoteFieldChars).optional(),
-  });
-
-  const weekPlanSchema = z.object({
-    weekStart: date,
-    theme: z.string().min(1).max(limits.maxThemeChars),
-    readinessScore: z.number().min(0).max(100).optional(),
-    readinessNote: z.string().max(limits.maxNoteFieldChars),
-    sessions: z.array(plannedSessionSchema).max(limits.maxWeekPlanSessions),
-    kind: z.enum(['demo', 'starter']).optional(),
-  });
-
   return z.object({
     messages: z.array(coachMessageSchema).max(limits.maxCoachMessages),
     athlete: athleteContextSchema,
-    recentSessions: z.array(sessionSchema).max(limits.maxRecentSessions).optional(),
-    weekPlan: weekPlanSchema.optional(),
+    recentSessions: z.array(createSessionSchema(limits)).max(limits.maxRecentSessions).optional(),
+    weekPlan: createWeekPlanSchema(limits).optional(),
   });
 }
 

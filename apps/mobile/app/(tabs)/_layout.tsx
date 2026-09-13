@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import { StyleSheet, Text, type ColorValue } from 'react-native';
 
+import { useAuth } from '../../src/state/auth';
 import { useProfile } from '../../src/state/profile';
 import { colors } from '../../src/theme';
 
@@ -9,7 +10,11 @@ function TabGlyph({ label, color }: { label: string; color: ColorValue }) {
 }
 
 export default function TabsLayout() {
+  const { loaded: authLoaded, token } = useAuth();
   const { loaded, hasCompletedOnboarding } = useProfile();
+  if (authLoaded && !token) {
+    return <Redirect href="/sign-in" />;
+  }
   if (loaded && !hasCompletedOnboarding) {
     return <Redirect href="/onboarding" />;
   }

@@ -1,4 +1,4 @@
-import { isDemoWeekPlan, planBanner, raceGoalLabel, resolveWeekPlan } from '@racelens/shared';
+import { displayWeekPlan, isDemoWeekPlan, planBanner, raceGoalLabel } from '@racelens/shared';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -9,8 +9,8 @@ import { useProfile } from '../../src/state/profile';
 import { colors, spacing, sportColor } from '../../src/theme';
 
 export default function PlanScreen() {
-  const { profile } = useProfile();
-  const plan = useMemo(() => resolveWeekPlan(profile), [profile]);
+  const { profile, weekPlan } = useProfile();
+  const plan = useMemo(() => displayWeekPlan(profile, weekPlan), [profile, weekPlan]);
   const demo = isDemoWeekPlan(plan);
 
   return (

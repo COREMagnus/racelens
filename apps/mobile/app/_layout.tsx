@@ -3,22 +3,33 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { PRODUCT_NAME } from '../src/branding';
+import { AuthProvider, useAuth } from '../src/state/auth';
+import { resolveRootRoute } from '../src/state/nav';
 import { ProfileProvider, useProfile } from '../src/state/profile';
 import { colors } from '../src/theme';
 
 export default function RootLayout() {
   return (
-    <ProfileProvider>
-      <StatusBar style="light" />
-      <RootNav />
-    </ProfileProvider>
+    <AuthProvider>
+      <ProfileProvider>
+        <StatusBar style="light" />
+        <RootNav />
+      </ProfileProvider>
+    </AuthProvider>
   );
 }
 
 function RootNav() {
-  const { loaded } = useProfile();
+  const auth = useAuth();
+  const profile = useProfile();
+  const route = resolveRootRoute({
+    authLoaded: auth.loaded,
+    profileLoaded: profile.loaded,
+    token: auth.token,
+    hasCompletedOnboarding: profile.hasCompletedOnboarding,
+  });
 
-  if (!loaded) {
+  if (route === 'boot') {
     return (
       <View style={styles.boot}>
         <Text style={styles.kicker}>{PRODUCT_NAME}</Text>
@@ -34,6 +45,7 @@ function RootNav() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
+      <Stack.Screen name="sign-in" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="(tabs)" />
     </Stack>

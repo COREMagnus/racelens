@@ -1,5 +1,5 @@
 import type { CoachMessage } from '@racelens/shared';
-import { generateStarterWeek, hasRaceGoal, raceGoalLabel } from '@racelens/shared';
+import { generateStarterWeek, hasRaceGoal, isStarterWeekPlan, raceGoalLabel } from '@racelens/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -20,8 +20,11 @@ import { useProfile } from '../../src/state/profile';
 import { colors, radius, spacing } from '../../src/theme';
 
 export default function CoachScreen() {
-  const { profile } = useProfile();
-  const starterWeek = useMemo(() => generateStarterWeek(profile), [profile]);
+  const { profile, sessions, weekPlan } = useProfile();
+  const starterWeek = useMemo(() => {
+    if (weekPlan && isStarterWeekPlan(weekPlan)) return weekPlan;
+    return generateStarterWeek(profile);
+  }, [profile, weekPlan]);
   const scrollRef = useRef<ScrollView>(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -61,7 +64,10 @@ export default function CoachScreen() {
     setError(null);
 
     try {
-      const body = buildCoachChatRequest(next, profile, starterWeek ? { weekPlan: starterWeek } : {});
+      const body = buildCoachChatRequest(next, profile, {
+        ...(starterWeek ? { weekPlan: starterWeek } : {}),
+        ...(sessions.length > 0 ? { recentSessions: sessions } : {}),
+      });
       const { reply } = await chatWithCoach(body);
       setMessages([...next, reply]);
     } catch (err) {

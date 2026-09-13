@@ -68,7 +68,17 @@ export {
 
 export {
   canGenerateStarterWeek,
+  displayWeekPlan,
   generateStarterWeek,
   resolveWeekPlan,
   sampleWeekPlan,
 } from './starter-week';
+
+export type {
+  AthleteSnapshot,
+  AuthCredentials,
+  AuthSessionResponse,
+  AuthUserPublic,
+} from './auth';
+
+export { parseStoredSession, parseStoredSessions, parseStoredWeekPlan } from './persist';

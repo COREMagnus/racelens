@@ -5,7 +5,7 @@ import request from 'supertest';
 import { createApp } from '../app';
 import type { AiClient } from '../ai/client';
 import { AiParseError, AiUpstreamError } from '../ai/errors';
-import { PRODUCTION_AI_DISABLED_MESSAGE } from '../lib/access';
+import { AUTH_REQUIRED_AI_MESSAGE } from '../lib/access';
 import type { SessionExtraction } from '../ai/schema';
 
 const extracted: SessionExtraction = {
@@ -43,6 +43,9 @@ function mockClient(overrides: Partial<AiClient> = {}): AiClient & { calls: stri
 const testEnv = {
   NODE_ENV: 'test',
   AI_RATE_LIMIT_MAX: '1000',
+  AUTH_RATE_LIMIT_MAX: '0',
+  DATABASE_PATH: ':memory:',
+  AUTH_SCRYPT_N: '4',
 };
 
 const athlete = {
@@ -69,13 +72,16 @@ describe('AI HTTP routes', () => {
     assert.doesNotMatch(JSON.stringify(res.body), /sk-/);
   });
 
-  it('returns 503 in production even when a key and client are present', async () => {
+  it('returns 401 in production when the request is unauthenticated', async () => {
     const client = mockClient();
     const app = createApp({
       env: {
         NODE_ENV: 'production',
         OPENAI_API_KEY: 'sk-should-never-be-sent',
         AI_RATE_LIMIT_MAX: '1000',
+        AUTH_RATE_LIMIT_MAX: '0',
+        DATABASE_PATH: ':memory:',
+        AUTH_SCRYPT_N: '4',
       },
       aiClient: client,
     });
@@ -85,11 +91,46 @@ describe('AI HTTP routes', () => {
     const coach = await request(app)
       .post('/coach/chat')
       .send({ messages: [athleteMessage], athlete });
-    assert.equal(analyze.status, 503);
-    assert.equal(coach.status, 503);
-    assert.equal(analyze.body.error, PRODUCTION_AI_DISABLED_MESSAGE);
-    assert.equal(coach.body.error, PRODUCTION_AI_DISABLED_MESSAGE);
+    assert.equal(analyze.status, 401);
+    assert.equal(coach.status, 401);
+    assert.equal(analyze.body.error, AUTH_REQUIRED_AI_MESSAGE);
+    assert.equal(coach.body.error, AUTH_REQUIRED_AI_MESSAGE);
     assert.deepEqual(client.calls, []);
+    assert.doesNotMatch(JSON.stringify(analyze.body), /sk-should-never-be-sent/);
+  });
+
+  it('serves mocked analyze and coach in production for an authenticated user', async () => {
+    const client = mockClient();
+    const app = createApp({
+      env: {
+        NODE_ENV: 'production',
+        OPENAI_API_KEY: 'sk-should-never-be-sent',
+        AI_RATE_LIMIT_MAX: '1000',
+        AUTH_RATE_LIMIT_MAX: '0',
+        DATABASE_PATH: ':memory:',
+        AUTH_SCRYPT_N: '4',
+      },
+      aiClient: client,
+    });
+    const registered = await request(app)
+      .post('/auth/register')
+      .send({ email: 'alex@example.com', password: 'password12' });
+    assert.equal(registered.status, 201);
+    const token = registered.body.token as string;
+    const analyze = await request(app)
+      .post('/sessions/analyze')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ type: 'text', payload: '45 min easy bike' });
+    const coach = await request(app)
+      .post('/coach/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ messages: [athleteMessage], athlete });
+    assert.equal(analyze.status, 200);
+    assert.equal(coach.status, 200);
+    assert.equal(analyze.body.sport, 'bike');
+    assert.equal(coach.body.reply.role, 'coach');
+    assert.ok(client.calls.includes('parseSession'));
+    assert.ok(client.calls.includes('completeCoach'));
     assert.doesNotMatch(JSON.stringify(analyze.body), /sk-should-never-be-sent/);
   });
 
@@ -300,6 +341,9 @@ describe('AI HTTP routes', () => {
     assert.equal(health.status, 200);
     assert.equal(health.body.service, 'triadapt-api');
     assert.equal(health.body.ai, 'unconfigured');
+    assert.equal(health.body.aiAccess, 'local');
+    assert.equal(health.body.auth, 'email-password');
+    assert.equal(health.body.database, 'sqlite');
     assert.equal(plan.status, 200);
     assert.match(plan.body.theme, /demo/i);
     assert.match(plan.body.readinessNote, /Demo data only/i);
@@ -367,8 +411,25 @@ describe('AI HTTP routes', () => {
     const res = await request(app).get('/health');
     assert.equal(res.status, 200);
     assert.equal(res.body.ai, 'openai');
+    assert.equal(res.body.aiAccess, 'local');
     assert.equal(res.body.models.text, 'gpt-4.1-mini');
     assert.doesNotMatch(JSON.stringify(res.body), /sk-local-only/);
+  });
+
+  it('reports production health as authenticated AI access, not disabled', async () => {
+    const app = createApp({
+      env: {
+        ...testEnv,
+        NODE_ENV: 'production',
+        OPENAI_API_KEY: 'sk-local-only',
+        DATABASE_PATH: ':memory:',
+      },
+    });
+    const res = await request(app).get('/health');
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ai, 'openai');
+    assert.equal(res.body.aiAccess, 'authenticated');
+    assert.notEqual(res.body.ai, 'disabled-production');
   });
 
   it('rejects oversized analyze text with 400 and does not call OpenAI', async () => {
@@ -541,7 +602,12 @@ describe('AI HTTP routes', () => {
 
   it('rejects disallowed browser origins', async () => {
     const app = createApp({
-      env: { ...testEnv, NODE_ENV: 'production', CORS_ORIGINS: 'https://app.triadapt.example' },
+      env: {
+        ...testEnv,
+        NODE_ENV: 'production',
+        CORS_ORIGINS: 'https://app.triadapt.example',
+        DATABASE_PATH: ':memory:',
+      },
       aiClient: mockClient(),
     });
     const res = await request(app)

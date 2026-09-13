@@ -39,6 +39,13 @@ apps/mobile/dist/
 *.mobileprovision
 *.orig.*
 
+# Local SQLite (never commit athlete data)
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+apps/api/data/
+
 # TypeScript / IDE
 .idea/
 .vscode/
